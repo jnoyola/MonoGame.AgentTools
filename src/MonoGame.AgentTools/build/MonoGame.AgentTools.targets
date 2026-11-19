@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    AgentToolsEnabled: true in Debug by default. When false, calls to AgentTools.Attach are compiled out
+    ([Conditional("AGENTTOOLS")]) and the assembly is left out of the build and publish output.
+  -->
+  <PropertyGroup>
+    <AgentToolsEnabled Condition="'$(AgentToolsEnabled)' == '' and '$(Configuration)' == 'Debug'">true</AgentToolsEnabled>
+    <DefineConstants Condition="'$(AgentToolsEnabled)' == 'true'">$(DefineConstants);AGENTTOOLS</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="AgentToolsExcludeFromOutput" AfterTargets="ResolvePackageAssets" Condition="'$(AgentToolsEnabled)' != 'true'">
+    <ItemGroup>
+      <RuntimeCopyLocalItems Remove="@(RuntimeCopyLocalItems)" Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'MonoGame.AgentTools'" />
+    </ItemGroup>
+  </Target>
+</Project>
