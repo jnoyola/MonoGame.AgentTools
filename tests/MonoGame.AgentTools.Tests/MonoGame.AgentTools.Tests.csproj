@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.0" />
     <PackageReference Include="xunit.v3" Version="4.0.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" PrivateAssets="all" />
@@ -21,6 +22,11 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The build task's source, compiled by MSBuild in consuming builds; tested here directly. -->
+    <Compile Include="..\..\src\MonoGame.AgentTools\build\McpConfig.cs" Link="McpConfig.cs" />
   </ItemGroup>
 
 </Project>

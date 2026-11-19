@@ -27,13 +27,31 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="MonoGame.AgentTools.Tests" />
+    <InternalsVisibleTo Include="MonoGame.AgentTools.Mcp.Tests" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- build\McpConfig.cs is compiled by MSBuild in the consuming build, not into this assembly. -->
+    <Compile Remove="build\**" />
     <None Include="build\**" Pack="true" PackagePath="build\" />
     <None Include="buildTransitive\**" Pack="true" PackagePath="buildTransitive\" />
     <None Include="..\..\docs\package-readme.md" Pack="true" PackagePath="\README.md" />
     <None Include="..\..\THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" />
   </ItemGroup>
+
+  <!--
+    The package's own version, for the build targets to put in .mcp.json. NuGet imports
+    build/<id>.props before the project, so it's set wherever the package is referenced.
+  -->
+  <Target Name="AgentToolsWriteVersionProps" BeforeTargets="_GetPackageFiles">
+    <PropertyGroup>
+      <_AgentToolsVersionProps>$(IntermediateOutputPath)pack\MonoGame.AgentTools.props</_AgentToolsVersionProps>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_AgentToolsVersionProps)" Overwrite="true" WriteOnlyWhenDifferent="true"
+                      Lines="&lt;Project&gt;&lt;PropertyGroup&gt;&lt;AgentToolsPackageVersion&gt;$(PackageVersion)&lt;/AgentToolsPackageVersion&gt;&lt;/PropertyGroup&gt;&lt;/Project&gt;" />
+    <ItemGroup>
+      <None Include="$(_AgentToolsVersionProps)" Pack="true" PackagePath="build\;buildTransitive\" />
+    </ItemGroup>
+  </Target>
 
 </Project>
