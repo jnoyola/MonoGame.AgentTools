@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A game that reports the input it reads as custom metrics, for the end-to-end input tests. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Matches the tests that run it: the lowest runtime games can use and the newest. -->
+    <TargetFrameworks>net8.0;net11.0</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <AgentToolsEnabled>true</AgentToolsEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5" />
+    <ProjectReference Include="..\..\src\MonoGame.AgentTools\MonoGame.AgentTools.csproj" />
+  </ItemGroup>
+
+  <Import Project="..\..\src\MonoGame.AgentTools\build\MonoGame.AgentTools.targets" />
+
+</Project>

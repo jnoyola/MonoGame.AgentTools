@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.AgentTools.Diagnostics;
 using MonoGame.AgentTools.Hud;
+using MonoGame.AgentTools.Input;
 using MonoGame.AgentTools.Runtime;
 
 namespace MonoGame.AgentTools.Live;
@@ -41,6 +42,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
     private bool _toggleHeld;
     private double _hudRefreshedAt = double.NegativeInfinity;
     private Timer? _watchdog;
+    private InputRecorder? _recorder;
 
     private LiveMonitor(Game game, CommandLineOptions options, AgentToolsSetup setup) : base(game)
     {
@@ -61,8 +63,16 @@ internal sealed class LiveMonitor : DrawableGameComponent
         var monitor = new LiveMonitor(game, options, setup);
         game.Components.Add(monitor);
         monitor.StartWatchdog(GameHooks.Bind(game));
+        if (options.RecordPath is not null)
+        {
+            var recorder = monitor._recorder = InputRecorder.Start(game, options.RecordPath);
+            // Written as it goes; flushed on a crash too, since that recording is the one most worth having.
+            AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.Flush();
+        }
         if (options.StatsPath is not null)
             game.Exiting += (_, _) => monitor.WriteStats(options.StatsPath);
+        if (monitor._recorder is { } r)
+            game.Exiting += (_, _) => r.Dispose();
     }
 
     /// <summary>
@@ -80,6 +90,9 @@ internal sealed class LiveMonitor : DrawableGameComponent
     public override void Update(GameTime gameTime)
     {
         Interlocked.Increment(ref _updates);
+        // MonoGame's first Update has a zero GameTime and isn't a frame, as in captures.
+        if (_recorder is not null && gameTime.TotalGameTime != TimeSpan.Zero)
+            _recorder.Sample(gameTime);
         var pressed = Game.IsActive && IsToggleKey(Keyboard.GetState());
         if (pressed && !_toggleHeld)
         {
@@ -257,6 +270,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
             CustomMetricValues = metricValues,
             Notes = _notes,
             MemoryHistory = _memoryHistory.Points.ToArray(),
+            Sections = _recorder is null ? new Dictionary<string, object>() : new() { ["recording"] = Capture.CaptureRunner.RecordingSection(_recorder) },
         };
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         Report.WriteSummary(path, info, FrameAnalysis.Run(frames, _warmup));
@@ -269,6 +283,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
         if (disposing)
         {
             _watchdog?.Dispose();
+            _recorder?.Dispose();
             _hud?.Dispose();
             _resources?.Dispose();
         }

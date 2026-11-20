@@ -8,16 +8,18 @@ game, then iterates autonomously.
 *The Earth Slam, an effect from a MonoGame visual-effects study. Made with `capture`, then `gif` of
 its first 1.9 s at 30 fps.*
 
-Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes
-and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
+Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
+hands and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
 measure.
 
 **For the agent:**
 
 - **Capture.** The game's real `Update` and `Draw` run at a fixed time step with a hidden window, so the
-  same build and arguments produce the same frames every time.
+  same build, arguments and input produce the same frames every time.
 - **Contact sheets.** Frames side by side in one labeled image, the way animation and VFX reviews judge
   timing and spacing. Two captures compare frame by frame, with every changed pixel marked.
+- **Playing the game.** Keyboard, mouse and gamepad input from a script, or a human's recording replayed
+  exactly.
 - **Performance.** Frame times, warm-up, allocations, GC, memory growth, JIT, draw calls and hitches,
   each with a verdict, plus numbers from your own game.
 
@@ -26,6 +28,7 @@ measure.
 - **HUD.** The same measurements in the corner while you play.
 - **GIFs.** Agents can't watch an animation; you can. Any capture becomes a GIF, and two captures play
   side by side.
+- **Recording.** Play the game, and the agent replays exactly what you pressed.
 
 Debug builds only by default. In other builds the calls are compiled out and the assembly is left out
 of the output. The tools allocate nothing per frame.
@@ -115,6 +118,27 @@ by 1.25 s, B's have landed while A's still hang in the air. You see the same com
 "count": 3, "crop": "240,40,800,600" }`, after one `capture` of each version. Each row is A, B, then
 their changed pixels.*
 
+### Playing the Game
+
+A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes:
+
+```json
+{ "input": "f60 Space down
+f75 Space up
+t1.5 MouseLeft down 640,360", "name": "jump" }
+```
+
+Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control in MonoGame's own names,
+and what it does. `input` also takes a file, or a capture's name to replay its input after a fix:
+
+```json
+{ "input": "jump", "name": "jump-after-fix", "sheet": { "against": "jump" } }
+```
+
+It replays [your recordings](#recording) the same way, frame for frame. Your game keeps calling
+`Keyboard`, `Mouse` and `GamePad.GetState()` and doesn't change. Captures never read your own cursor or
+gamepad, so they stay repeatable. See [Input and replay](docs/input.md).
+
 ### Performance
 
 For numbers that describe the game rather than the capture, the agent captures without saving frames, in
@@ -163,6 +187,17 @@ When a choice is about how something feels in motion, the agent can make a GIF a
 *`gif` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
 "240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
 
+### Recording
+
+When something goes wrong while you play, record it and hand it to the agent:
+
+```
+MyGame --agenttools-record sessions/boss
+```
+
+`sessions/boss.input` is written as you go, so even a crash keeps it. Give the agent its path, and it
+[replays exactly what your game read](#playing-the-game), frame for frame, as many times as it needs.
+
 ## Configuration
 
 ### Notes and Metrics
@@ -209,7 +244,8 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 - [MCP server](docs/mcp.md): setup for each client, and every tool with examples
 - [Capture](docs/capture.md): command-line options, determinism and output files
 - [Performance](docs/performance.md): warm-up gates, allocations, memory growth and hitches
-- [Live play](docs/live.md): the HUD and session stats
+- [Input and replay](docs/input.md): input scripts, recording, and frame timing
+- [Live play](docs/live.md): the HUD, session stats and recording
 - [Design](docs/design.md): how it works and why, with the precedents it follows
 
 Agents get the same guidance from the server's `guide` tool.

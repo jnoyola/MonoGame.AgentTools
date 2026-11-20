@@ -10,6 +10,8 @@ trim_trailing_whitespace = true
 indent_size = 4
 # Short object initializers (test fixtures, options) may keep several members on a line.
 csharp_new_line_before_members_in_object_initializers = false
+# A braced case block sits at the case label's indent, not one level deeper.
+csharp_indent_case_contents_when_block = false
 
 [*.{csproj,props,targets,slnx,json,yml,yaml}]
 indent_size = 2

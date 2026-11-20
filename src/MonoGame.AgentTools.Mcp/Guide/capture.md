@@ -2,11 +2,14 @@
 What capture does, its options, and its output files.
 
 capture builds the game (Debug unless `configuration` names another with the tools enabled), then runs
-it with `--agenttools-capture`: the game's real `Update` and `Draw` are called at a fixed step (default 1/60 s) with a hidden window, each frame is read back from the
-backbuffer, and the game exits. The same build and arguments produce the same frames, so two captures can
-be compared before and after a change. Pixels can differ slightly across GPUs and drivers.
+it with `--agenttools-capture`: the game's real `Update` and `Draw` are called at a fixed step (the
+game's own `TargetElapsedTime`) with a hidden window, each frame is read back from the backbuffer, and
+the game exits. The same build, arguments and input produce the same frames, so two captures can be
+compared before and after a change. The machine's own mouse, lock keys and gamepads never reach a
+capture; `input` drives them (topic input). Pixels can differ slightly across GPUs and drivers.
 
-Options: `seconds` (default 1) or `frames`; `fps` (default 60); `size` (default 1280x720, or `native`);
+Options: `seconds` (default 1, or to 1 s after the last input event) or `frames`; `fps` (default: the
+game's own step); `input` and `timing` (topic input); `size` (default 1280x720, or `native`);
 `save` (`all`, `none`, `every:N`, or `1,30,60`); `realtime`; `jitNames`; `gameArgs` for the game's own flags;
 `detail`: `brief` (default) returns one plain-text line per check (warm-up, frame time, allocations, GC and
 growth, render, hitches, custom metrics), enough to judge a run; `full` returns summary.json itself, with
@@ -17,7 +20,9 @@ pruned to the 10 most recent; give a capture a `name` to keep it, such as a base
 - `summary.json`: frame-time percentiles, warm-up gates, allocations, GC, JIT, `GraphicsDevice.Metrics`,
   hitches with their likely cause (the 10 largest, plus a count of all), custom metric ranges, notes.
 - `frames.csv`: one row per frame with the same measurements; custom metrics are `custom.<name>` columns.
-- `frames/fNNNN.png`: saved frames. Frame N is drawn after N steps, at N / fps game seconds.
+- `frames/fNNNN.png`: saved frames; frames.csv `sim_s` is each frame's game time.
+- `capture.input`, `capture.timing`: the input and (under real or replayed timing) frame times used;
+  pass the capture's name as `input` or `timing` to replay them.
 - `sheet.png`: 12 evenly spaced frames, 4 per row, unlabeled (written by the game itself).
 - `sheets/`: labeled contact sheets returned by capture and contact_sheet.
 - `error.txt`: only when the capture failed.

@@ -49,7 +49,7 @@ internal sealed class GameHooks
         return method.CreateDelegate<T>(target);
     }
 
-    private static InvalidOperationException Incompatible(string member) =>
+    internal static InvalidOperationException Incompatible(string member) =>
         new($"MonoGame.AgentTools can't find {member} in MonoGame {typeof(Game).Assembly.GetName().Version}. " +
             "This MonoGame version isn't supported yet.");
 }

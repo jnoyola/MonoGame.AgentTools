@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MonoGame.AgentTools\MonoGame.AgentTools.csproj" />
+    <!-- Built first, run by InputCaptureTests as a separate process. -->
+    <ProjectReference Include="..\InputProbe\InputProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
