@@ -5,8 +5,8 @@ game, then iterates autonomously.
 
 ![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
 
-*Captured with the `capture` tool and turned into a GIF with the `gif` tool. The effect is from a
-MonoGame visual-effects study.*
+*The Earth Slam, an effect from a MonoGame visual-effects study. Made with `capture`, then `gif` of
+its first 1.9 s at 30 fps.*
 
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes
 and a stopwatch, through an MCP server and a small NuGet package:
@@ -83,6 +83,10 @@ Custom metrics (first → last, min to max):
 
 ![Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land](docs/images/earth-slam-sheet.png)
 
+*The sheet that `capture` call returned: 12 frames picked evenly across the 2.5 s run, each labeled with
+its frame and game time. The ground cracks in two jolts, then erupts: a dust ring rolls out, and rocks
+are thrown up and land.*
+
 The agent reads the sheet as an image, so it can judge what's on screen and how it moves, then zoom in
 with `contact_sheet` (a shorter time range, a crop) without running the game again.
 
@@ -96,12 +100,19 @@ B's have landed while A's still hang in the air.
 
 ![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
 
+*`contact_sheet` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.9, "to": 1.6,
+"count": 3, "crop": "240,40,800,600" }`, after one `capture` of each version. Each row is A, B, then
+their changed pixels.*
+
 ### A GIF for you
 
 When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
 `against` plays the two versions side by side:
 
 ![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
+
+*`gif` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
+"240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
 
 ### Performance
 

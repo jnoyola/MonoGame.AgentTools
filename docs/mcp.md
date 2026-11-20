@@ -126,6 +126,9 @@ same build and arguments draw the same frames.
 
 ![Three rows comparing a floaty and a heavy earth slam, with the changed pixels on the rocks](images/earth-slam-comparison.png)
 
+*A floaty Earth Slam (A) against the shipped one (B), from `{ "capture": "slam-heavy", "against":
+"slam-floaty", "from": 0.9, "to": 1.6, "count": 3, "crop": "240,40,800,600" }`. Only the rocks changed.*
+
 ### gif
 
 Makes an animated GIF from a capture's saved frames and returns its path. The agent can't watch it, so
