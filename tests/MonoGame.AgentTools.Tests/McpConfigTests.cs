@@ -111,5 +111,5 @@ public class McpConfigTests
     }
 
     private static JsonElement Parse(string text) =>
-        JsonDocument.Parse(text, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }).RootElement.Clone();
+        JsonElement.Parse(text, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
 }
