@@ -51,15 +51,25 @@ which clients that start servers without a shell can't run.
 
 | Tool | What it does |
 |---|---|
+| [`list_games`](#list_games) | Game projects in the workspace that reference the package |
 | [`capture`](#capture) | Builds the game, captures it, returns a reading of the run and a contact sheet |
 | [`contact_sheet`](#contact_sheet) | Another sheet from an existing capture: a closer time range, a crop, or a comparison |
 | [`gif`](#gif) | An animated GIF of a capture for a person to watch |
-| [`list_games`](#list_games) | Game projects in the workspace that reference the package |
 | [`guide`](#guide) | Setup, options and how to read the measurements, in depth |
 
 Captures are written to `.agenttools/captures/<name>` in the workspace, a folder that ignores itself in
 git. Unnamed captures are pruned to the 10 most recent; named ones are kept, for comparing before and
 after a change.
+
+### list_games
+
+Lists the executable projects under the workspace that reference `MonoGame.AgentTools`. `capture` needs
+a `project` only when there's more than one.
+
+```text
+MyGame\MyGame.csproj
+Tools\LevelViewer\LevelViewer.csproj
+```
 
 ### capture
 
@@ -139,16 +149,6 @@ GIFs are saved in the capture's `gifs/` folder.
 ```json
 { "capture": "after", "from": 0.2, "to": 1.5, "speed": 0.5 }
 { "capture": "after", "against": "before", "crop": "370,110,540,500", "width": 300 }
-```
-
-### list_games
-
-Lists the executable projects under the workspace that reference `MonoGame.AgentTools`. `capture` needs
-a `project` only when there's more than one.
-
-```text
-MyGame\MyGame.csproj
-Tools\LevelViewer\LevelViewer.csproj
 ```
 
 ### guide
