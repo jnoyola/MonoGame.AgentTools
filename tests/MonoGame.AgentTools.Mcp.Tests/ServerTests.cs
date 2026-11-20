@@ -1,5 +1,6 @@
 extern alias Library;
 
+using System.Text.Json;
 using Library::MonoGame.AgentTools.Diagnostics;
 using MonoGame.AgentTools.Hud;
 using MonoGame.AgentTools.Mcp.Games;
@@ -22,12 +23,14 @@ public class ServerTests
     [Fact]
     public void Run_command_is_read_after_build_warnings()
     {
-        var output = """
+        // MSBuild reports native paths, so the test uses this platform's.
+        var bin = Path.Combine(Path.GetTempPath(), "game", "bin", "Debug", "net10.0");
+        var output = $$"""
             Game.cs(1,1): warning CS0169: The field 'x' is never used
             {
               "Properties": {
-                "TargetPath": "C:\\game\\bin\\Debug\\net10.0\\Game.dll",
-                "RunCommand": "C:\\game\\bin\\Debug\\net10.0\\Game.exe",
+                "TargetPath": {{JsonSerializer.Serialize(Path.Combine(bin, "Game.dll"))}},
+                "RunCommand": {{JsonSerializer.Serialize(Path.Combine(bin, "Game.exe"))}},
                 "RunArguments": "",
                 "RunWorkingDirectory": "",
                 "AgentToolsEnabled": "true"
@@ -38,10 +41,19 @@ public class ServerTests
         var run = GameProject.ParseRunCommand(output);
         var disabled = GameProject.ParseRunCommand(output.Replace("\"AgentToolsEnabled\": \"true\"", "\"AgentToolsEnabled\": \"\"", StringComparison.Ordinal));
 
-        Assert.Equal(@"C:\game\bin\Debug\net10.0\Game.exe", run.FileName);
-        Assert.Equal(@"C:\game\bin\Debug\net10.0", run.WorkingDirectory);
+        Assert.Equal(Path.Combine(bin, "Game.exe"), run.FileName);
+        Assert.Equal(bin, run.WorkingDirectory);
         Assert.True(run.ToolsEnabled);
         Assert.False(disabled.ToolsEnabled);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Game.cs(1,1): warning CS0169: The field 'x' is never used")]
+    public void Build_output_without_properties_is_a_clear_error(string output)
+    {
+        var error = Assert.Throws<ToolException>(() => GameProject.ParseRunCommand(output));
+        Assert.Equal("The build didn't report the game's output path.", error.Message);
     }
 
     [Theory]

@@ -96,8 +96,9 @@ internal sealed partial class GameProject
     internal static RunCommand ParseRunCommand(string buildOutput)
     {
         // With -getProperty, MSBuild prints a JSON object after any warnings.
-        var start = buildOutput.IndexOf("\n{", StringComparison.Ordinal);
-        start = buildOutput.StartsWith('{') ? 0 : start + 1;
+        var start = buildOutput.StartsWith('{') ? 0 : buildOutput.IndexOf("\n{", StringComparison.Ordinal);
+        if (start > 0)
+            ++start;
         if (start < 0)
             throw new ToolException("The build didn't report the game's output path.");
 
