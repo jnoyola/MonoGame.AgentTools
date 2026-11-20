@@ -1,6 +1,7 @@
 # MonoGame.AgentTools
 
-Let a coding agent run your MonoGame game, see what it draws and measure how it performs.
+Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
+game, then iterates autonomously.
 
 ![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
 

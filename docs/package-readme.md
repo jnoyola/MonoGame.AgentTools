@@ -1,6 +1,7 @@
 # MonoGame.AgentTools
 
-Let a coding agent run your MonoGame game, see what it draws and measure how it performs.
+Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
+game, then iterates autonomously.
 
 - **Deterministic capture**: the game's real `Update` and `Draw` at a fixed step with a hidden window.
 - **Contact sheets, before-and-after comparisons and GIFs** for judging motion.
