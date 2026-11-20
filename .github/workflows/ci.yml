@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
+          # The SDK pinned in global.json, plus the .NET 10 runtime the tests run on.
+          global-json-file: global.json
           dotnet-version: 10.0.x
       - run: dotnet format --verify-no-changes
 
@@ -40,6 +42,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
+          # The SDK pinned in global.json, plus the .NET 10 runtime the tests run on.
+          global-json-file: global.json
           dotnet-version: 10.0.x
       - run: dotnet build -c ${{ matrix.configuration }}
       - run: dotnet test -c ${{ matrix.configuration }} --no-build
@@ -51,6 +55,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
+          # The SDK pinned in global.json, plus the .NET 10 runtime the tests run on.
+          global-json-file: global.json
           dotnet-version: 10.0.x
       # Tags vX.Y.Z pack that version; other builds get a CI prerelease number.
       - name: Version
