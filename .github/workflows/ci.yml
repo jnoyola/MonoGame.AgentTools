@@ -38,9 +38,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      # The pinned SDK builds; the tests also run on the lowest runtimes the library (8) and server (10) support.
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
+          dotnet-version: |
+            8.0.x
+            10.0.x
       - run: dotnet build -c ${{ matrix.configuration }}
       - run: dotnet test -c ${{ matrix.configuration }} --no-build
 
