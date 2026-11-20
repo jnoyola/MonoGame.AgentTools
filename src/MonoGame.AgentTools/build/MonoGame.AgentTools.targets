@@ -13,4 +13,21 @@
       <RuntimeCopyLocalItems Remove="@(RuntimeCopyLocalItems)" Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'MonoGame.AgentTools'" />
     </ItemGroup>
   </Target>
+
+  <!--
+    Adds the MCP server to the repository's .mcp.json (and .vscode/mcp.json, .cursor/mcp.json where those
+    folders exist) on build, merging into what's there and rewriting only when the package version
+    changes. AgentToolsInstallMcp=false opts out; AgentToolsRoot picks the folder instead of the .git root.
+    Skipped in CI and design-time builds, and without a package version (referenced as a project).
+  -->
+  <UsingTask TaskName="MonoGame.AgentTools.Build.AddAgentToolsMcpServer" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <Task>
+      <Code Type="Class" Language="cs" Source="$(MSBuildThisFileDirectory)McpConfig.cs" />
+    </Task>
+  </UsingTask>
+
+  <Target Name="AgentToolsAddMcpServer" AfterTargets="Build"
+          Condition="'$(AgentToolsEnabled)' == 'true' and '$(AgentToolsInstallMcp)' != 'false' and '$(AgentToolsPackageVersion)' != '' and '$(DesignTimeBuild)' != 'true' and '$(ContinuousIntegrationBuild)' != 'true' and '$(CI)' != 'true' and '$(TF_BUILD)' == ''">
+    <AddAgentToolsMcpServer Root="$(AgentToolsRoot)" StartDirectory="$(MSBuildProjectDirectory)" PackageVersion="$(AgentToolsPackageVersion)" />
+  </Target>
 </Project>
