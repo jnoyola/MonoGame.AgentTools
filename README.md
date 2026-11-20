@@ -189,7 +189,7 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 ## Building from source
 
 The repository builds with the .NET SDK pinned in [`global.json`](global.json) (11.0.100) and runs its
-tests on .NET 10:
+tests on .NET 11:
 
 ```
 dotnet build
