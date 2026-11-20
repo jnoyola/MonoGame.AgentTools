@@ -216,8 +216,10 @@ Agents get the same guidance from the server's `guide` tool.
 
 ## Building from Source
 
-The repository builds with the .NET SDK pinned in [`global.json`](global.json) (11.0.100) and runs its
-tests on .NET 11:
+The repository builds with the .NET SDK pinned in [`global.json`](global.json) (11.0.100). Each
+component's tests run on the lowest runtime it supports and the newest: the library's on .NET 8 and 11,
+the MCP server's on .NET 10 and 11. `dotnet test` needs the .NET 8 and 10 runtimes installed beside the
+SDK.
 
 ```
 dotnet build
