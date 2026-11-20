@@ -114,7 +114,7 @@ With `against`, each row is one moment: the baseline (A), this capture (B), and 
 in red, brighter for larger changes, with the percentage changed. Any changed pixel counts, since the
 same build and arguments draw the same frames.
 
-![Three rows comparing an effect without and with bloom](images/bloom-comparison.png)
+![Three rows comparing a floaty and a heavy earth slam, with the changed pixels on the rocks](images/earth-slam-comparison.png)
 
 ### gif
 
@@ -147,7 +147,8 @@ Lists the executable projects under the workspace that reference `MonoGame.Agent
 a `project` only when there's more than one.
 
 ```text
-samples\Fireworks\Fireworks.csproj
+MyGame\MyGame.csproj
+Tools\LevelViewer\LevelViewer.csproj
 ```
 
 ### guide

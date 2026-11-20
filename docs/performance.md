@@ -63,5 +63,5 @@ whole session, so growth that takes minutes shows up. See [Live play](live.md).
 
 The tools compile their own per-frame code before measuring, so they never show up as a first-use cost.
 Your game can do the same by running its real paths once during loading. For example, `SpriteBatch`
-grows its buffers the first time a frame draws more sprites than before; the Fireworks sample draws its
-maximum once, invisibly, in `LoadContent`.
+grows its buffers the first time a frame draws more sprites than before, so draw your largest frame once,
+invisibly, in `LoadContent`.

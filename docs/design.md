@@ -603,7 +603,8 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   content pipeline), seeds its randomness and keeps a fixed particle pool. Its first capture found
   MonoGame's `SpriteBatch` allocating 61 KB the first time a frame drew more than 256 sprites (its batch
   grows on demand); the sample draws its maximum once, invisibly, in `LoadContent`, which is the
-  prewarming the performance guide recommends to games.
+  prewarming the performance guide recommends to games. Removed before 0.1 (2026-11-20): the docs
+  use Study2's Earth Slam instead, and a fuller sample comes once input lets it be played.
 - **PNG decoding is in-house** (8-bit RGB/RGBA, all five filters, no interlace): the server only
   reads frames the library writes. ImageSharp's license isn't plain MIT and SkiaSharp adds native
   binaries for every platform; either is the fallback if more formats are ever needed.

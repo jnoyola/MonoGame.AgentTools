@@ -47,60 +47,60 @@ and a stopwatch, through an MCP server and a small NuGet package:
    Commit it, and every agent that reads `.mcp.json` (Claude Code, for example) can use the tools. See
    [MCP server](docs/mcp.md) for VS Code, Cursor and other clients.
 
-Then ask your agent something like *"capture the game and check the explosion's timing"*.
+Then ask your agent something like *"The earth slam feels floaty. Make the rocks land harder, then show
+me a before and after GIF."* The rest of this page is what it works with.
 
 Your `Update` and `Draw` overrides should call `base.Update(gameTime)` and `base.Draw(gameTime)`, as the
-MonoGame templates do. The [Fireworks sample](samples/Fireworks) is a complete game set up this way.
+MonoGame templates do.
 
 ## What your agent sees
 
 ### A capture
 
 The agent calls `capture`. The tool builds the game, runs it and returns a short reading of the run and
-a labeled contact sheet:
+a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera:
 
 ```json
-{ "seconds": 6, "name": "fireworks", "sheet": { "from": 1, "to": 3, "count": 8 } }
+{ "frames": 150, "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" }
 ```
 
 ```text
-Captured Fireworks to .agenttools/captures/fireworks
-Sheet .agenttools/captures/fireworks/sheets/f60-f180_c4_n8.png (1286x362), 4 per row: f60 1.000s, f77 1.283s, f94 1.567s, f111 1.850s, f129 2.150s, f146 2.433s, f163 2.717s, f180 3.000s
-360 frames at 60 fps: 6 s game time, 2.86 s wall, 1280x720
-Notes: Esc - exit
-Warm-up: memory stable at f150; performance stable at f277
-Frame CPU ms (after warm-up): p50 0.35, p95 0.53, p99 0.8, max 0.88
+Captured Study2.Game.DesktopGL to .agenttools/captures/slam-heavy
+Sheet .agenttools/captures/slam-heavy/sheets/f1-f150_c4_n12.png (1286x544), 4 per row: f1 0.017s, f15 0.250s, f28 0.467s, f42 0.700s, f55 0.917s, f69 1.150s, f82 1.367s, f96 1.600s, f109 1.817s, f123 2.050s, f136 2.267s, f150 2.500s
+150 frames, fixed 16.6667 ms step (60 fps): 2.5 s game time, 1.59 s wall, 1280x720
+Notes: Esc - exit; show earthslam, camera front, studio
+Warm-up: memory stable at f129; performance not reached (still active: JitCompilation); run longer to reach it
+Frame CPU ms (all frames, includes first-use costs): p50 0.48, p95 0.78, p99 1.2, max 1.75
 Allocations after memory stable: game thread 0 B, other threads 0 B
-Growth after memory stable: too short to judge: 1.5 s after the memory gate, needs 5 s; heap 0, private +4 MB, GPU resources 0 (heap counts uncollected garbage)
-GC: none · JIT on game thread: 20 methods, 1.27 ms
-Render per frame (mean/max): draws 1/1, primitives 498/634, target switches 0/0, sprites 249/317
-Hitches (> 2.33 ms): none
+Growth after memory stable: too short to judge: 0.1 s after the memory gate, needs 5 s; heap 0, private 0, GPU resources 0 (heap counts uncollected garbage)
+GC: none · JIT on game thread: 9 methods, 1 ms
+Render per frame (mean/max): draws 34/72, primitives 791/1122, target switches 13/26
+Hitches (> 2.48 ms): none
 Custom metrics (first → last, min to max):
-  particles: 1 → 249, 1 to 318
+  particles: 14 → 36, 14 to 192
 ```
 
-![A contact sheet of eight fireworks frames, each labeled with its frame number and game time](docs/images/fireworks-sheet.png)
+![Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land](docs/images/earth-slam-sheet.png)
 
 The agent reads the sheet as an image, so it can judge what's on screen and how it moves, then zoom in
-with `contact_sheet` (a shorter time range, a crop) without running the game again. Here is a sheet of
-the effect at the top of this page:
-
-![Twelve frames of an earth slam effect: impact, dust ring, rocks thrown up and settling](docs/images/earth-slam-sheet.png)
+with `contact_sheet` (a shorter time range, a crop) without running the game again.
 
 ### Before and after
 
 Capture a baseline with a `name`, make a change, and capture again with `sheet: { against: "<name>" }`.
 Each row shows the same frame from both captures and every pixel that changed, in red. Captures are
-deterministic, so any red is a real difference. Here, bloom is off in A and on in B:
+deterministic, so any red is a real difference. Here A is a floaty version of the slam, with half the
+gravity and a slower launch to the same height, and B is the fix. Only the rocks changed: by 1.25 s,
+B's have landed while A's still hang in the air.
 
-![Three rows: the effect without bloom, with bloom, and the changed pixels in red](docs/images/bloom-comparison.png)
+![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
 
 ### A GIF for you
 
 When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
 `against` plays the two versions side by side:
 
-![The same effect without and with bloom, playing side by side](docs/images/bloom-ab.gif)
+![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
 
 ### Performance
 
@@ -112,14 +112,17 @@ real time, for at least 5 seconds:
 ```
 
 ```text
-480 frames at 60 fps: 8 s game time, 8.4 s wall, 1280x720
-Warm-up: memory stable at f62; performance stable at f193
-Frame CPU ms (after warm-up): p50 0.14, p95 0.17, p99 0.2, max 0.27
-Allocations after memory stable: game thread 0 B, other threads 6 KB
-Growth after memory stable, 7 s: steady: no GPU resources leaked (private bytes are judged from 30 s); heap +8 KB, private +6.3 MB, GPU resources 0 (heap counts uncollected garbage)
-GC: none · JIT on game thread: 20 methods, 1.4 ms
-Render per frame (mean/max): draws 1/1, primitives 492/642, target switches 0/0, sprites 246/321
-Hitches (> 2.13 ms): none
+480 frames, fixed 16.6667 ms step (60 fps): 8 s game time, 8.48 s wall, 1280x720
+Notes: Esc - exit; show earthslam, camera front, studio
+Warm-up: memory stable at f62; performance stable at f129, then disturbed 3 times from f180
+Frame CPU ms (after warm-up): p50 0.29, p95 0.73, p99 1.02, max 1.27
+Allocations after memory stable: game thread 0 B, other threads 0 B
+Growth after memory stable, 7 s: steady: no GPU resources leaked (private bytes are judged from 30 s); heap 0, private -2.3 MB, GPU resources 0 (heap counts uncollected garbage)
+GC: none · JIT on game thread: 10 methods, 1.35 ms
+Render per frame (mean/max): draws 31/42, primitives 695/1128, target switches 13/13
+Hitches (> 2.32 ms): none
+Custom metrics (first → last, min to max):
+  particles: 14 → 46, 6 to 192
 ```
 
 Numbers taken while code is still compiling or memory is still growing describe startup, not the game,
@@ -137,7 +140,7 @@ GPU resources, JIT, the warm-up gates, draw calls and your custom metrics. Backt
 `--agenttools-stats out/live.json` records a whole session and writes it when the game exits. See
 [Live play](docs/live.md).
 
-<!-- TODO: docs/images/hud.png, a screenshot of the Fireworks sample with the HUD on. -->
+<!-- TODO: docs/images/hud.png, a screenshot of a game with the HUD on. -->
 
 ## Telling the agent about your game
 
@@ -169,8 +172,9 @@ Agents get the same guidance from the server's `guide` tool.
 
 ## Requirements
 
-- MonoGame 3.8.5 DesktopGL, .NET 8 or later.
-- The MCP server needs the .NET 10 SDK (for `dotnet dnx`).
+- **Your game:** MonoGame 3.8.5 DesktopGL, targeting .NET 8 or later.
+- **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. It installs
+  beside older SDKs and doesn't change what your game targets.
 - Tested on Windows. CI builds and runs the unit tests on Linux and macOS too, but captures haven't been
   run there yet.
 - Pixels can differ slightly across GPUs and drivers, so comparisons across machines need a tolerance.

@@ -9,7 +9,7 @@ it.
 MyGame --agenttools-hud
 ```
 
-<!-- TODO: images/hud.png, a screenshot of the Fireworks sample with the HUD on. -->
+<!-- TODO: images/hud.png, a screenshot of a game with the HUD on. -->
 
 The HUD shows, in the top-right corner:
 
