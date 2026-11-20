@@ -92,7 +92,7 @@ Builds the game and runs its real `Update` and `Draw` at a fixed step with a hid
 | `timeoutSeconds` | 300 | Kill the game after this long |
 
 The brief result is one plain-text line per check, about 1 KB, with each verdict stated. There's an
-example in the [README](../README.md#a-capture). Model clients keep images up to 1568 px on the long edge,
+example in the [README](../README.md#capture). Model clients keep images up to 1568 px on the long edge,
 so sheets stay within that.
 
 Examples:

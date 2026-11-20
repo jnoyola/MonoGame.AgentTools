@@ -9,21 +9,28 @@ game, then iterates autonomously.
 its first 1.9 s at 30 fps.*
 
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes
-and a stopwatch, through an MCP server and a small NuGet package:
+and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
+measure.
 
-- **Deterministic capture.** The game's real `Update` and `Draw` run at a fixed time step with a hidden
-  window, so the same build and arguments produce the same frames every time.
+**For the agent:**
+
+- **Capture.** The game's real `Update` and `Draw` run at a fixed time step with a hidden window, so the
+  same build and arguments produce the same frames every time.
 - **Contact sheets.** Frames side by side in one labeled image, the way animation and VFX reviews judge
-  timing and spacing. Agents read motion from these.
-- **Before and after.** The same frames from two captures, with every changed pixel marked.
-- **GIFs for people.** Agents can't watch an animation; you can. Any capture becomes a GIF that plays on
-  a double-click.
-- **Measurements that say what they mean.** Frame times, warm-up, allocations, GC, memory growth, JIT,
-  draw calls and hitches, each with a verdict, plus numbers from your own game.
-- **Free when off.** Debug builds only by default. In other builds the calls are compiled out and the
-  assembly is left out of the output. The tools allocate nothing per frame.
+  timing and spacing. Two captures compare frame by frame, with every changed pixel marked.
+- **Performance.** Frame times, warm-up, allocations, GC, memory growth, JIT, draw calls and hitches,
+  each with a verdict, plus numbers from your own game.
 
-## Quick start
+**For the human:**
+
+- **HUD.** The same measurements in the corner while you play.
+- **GIFs.** Agents can't watch an animation; you can. Any capture becomes a GIF, and two captures play
+  side by side.
+
+Debug builds only by default. In other builds the calls are compiled out and the assembly is left out
+of the output. The tools allocate nothing per frame.
+
+## Quick Start
 
 1. Reference the package from your game's executable project:
 
@@ -35,9 +42,12 @@ and a stopwatch, through an MCP server and a small NuGet package:
 
    ```csharp
    using var game = new MyGame();
-   AgentTools.Attach(game, args);
+   AgentTools.Attach(game, args, new() { ShowHud = true });
    game.Run();
    ```
+
+   `ShowHud` shows the HUD whenever you run the game. Leave it out to start with the HUD hidden; backtick
+   toggles it either way.
 
 3. Build in Debug. The build adds the MCP server to `.mcp.json` at the root of your repository:
 
@@ -54,9 +64,9 @@ me a before and after GIF."* The rest of this page is what it works with.
 Your `Update` and `Draw` overrides should call `base.Update(gameTime)` and `base.Draw(gameTime)`, as the
 MonoGame templates do.
 
-## What your agent sees
+## For the Agent
 
-### A capture
+### Capture
 
 The agent calls `capture`. The tool builds the game, runs it and returns a short reading of the run and
 a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera:
@@ -81,38 +91,29 @@ Custom metrics (first → last, min to max):
   particles: 14 → 36, 14 to 192
 ```
 
+### Contact Sheets
+
+The capture returns a contact sheet, which the agent reads as an image, so it can judge what's on
+screen and how it moves:
+
 ![Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land](docs/images/earth-slam-sheet.png)
 
 *The sheet that `capture` call returned: 12 frames picked evenly across the 2.5 s run, each labeled with
 its frame and game time. The ground cracks in two jolts, then erupts: a dust ring rolls out, and rocks
 are thrown up and land.*
 
-The agent reads the sheet as an image, so it can judge what's on screen and how it moves, then zoom in
-with `contact_sheet` (a shorter time range, a crop) without running the game again.
-
-### Before and after
-
-Capture a baseline with a `name`, make a change, and capture again with `sheet: { against: "<name>" }`.
-Each row shows the same frame from both captures and every pixel that changed, in red. Captures are
-deterministic, so any red is a real difference. Here A is a floaty version of the slam, with half the
-gravity and a slower launch to the same height, and B is the fix. Only the rocks changed: by 1.25 s,
-B's have landed while A's still hang in the air.
+`contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `against`,
+it compares two captures: each row shows the same frame from both and every pixel that changed, in red.
+Captures are deterministic, so any red is a real difference. Here A is a floaty version of the slam,
+with half the gravity and a slower launch to the same height, and B is the fix. Only the rocks changed:
+by 1.25 s, B's have landed while A's still hang in the air. You see the same comparison as a
+[side-by-side GIF](#gifs).
 
 ![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
 
 *`contact_sheet` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.9, "to": 1.6,
 "count": 3, "crop": "240,40,800,600" }`, after one `capture` of each version. Each row is A, B, then
 their changed pixels.*
-
-### A GIF for you
-
-When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
-`against` plays the two versions side by side:
-
-![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
-
-*`gif` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
-"240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
 
 ### Performance
 
@@ -141,24 +142,35 @@ Numbers taken while code is still compiling or memory is still growing describe 
 so two warm-up gates decide when measurements count. Any game-thread allocation after the memory gate is
 a per-frame allocation worth fixing. See [Performance](docs/performance.md) for how to read each line.
 
-## While you play
+## For the Human
 
-```
-MyGame --agenttools-hud
-```
+### HUD
 
-The HUD shows the same measurements in the corner while you play: frame times, allocations, GCs, memory,
-GPU resources, JIT, the warm-up gates, draw calls and your custom metrics. Backtick toggles it.
-`--agenttools-stats out/live.json` records a whole session and writes it when the game exits. See
-[Live play](docs/live.md).
+With `ShowHud`, the HUD shows the agent's measurements in the corner while you play: frame times,
+allocations, GCs, memory, GPU resources, JIT, the warm-up gates, draw calls and your custom metrics.
+Backtick toggles it. A whole session can also be recorded as stats; see [Live play](docs/live.md).
 
 <!-- TODO: docs/images/hud.png, a screenshot of a game with the HUD on. -->
 
-## Telling the agent about your game
+### GIFs
+
+When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
+`against` plays two versions side by side, the same comparison the agent read as a
+[contact sheet](#contact-sheets):
+
+![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
+
+*`gif` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
+"240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
+
+## Configuration
+
+### Notes and Metrics
 
 ```csharp
 AgentTools.Attach(game, args, new()
 {
+    ShowHud = true,
     Notes = "Controls:\nEsc - Exit",
     CustomMetrics = [("particles", () => game.ParticleCount), ("enemies", () => game.Enemies.Count)],
 });
@@ -172,26 +184,7 @@ every frame, so they must not allocate.
 Your game's own command-line flags pass through `gameArgs`, so a scene or camera setup is a capture
 argument rather than a code change.
 
-## Documentation
-
-- [MCP server](docs/mcp.md): setup for each client, and every tool with examples
-- [Capture](docs/capture.md): command-line options, determinism and output files
-- [Performance](docs/performance.md): warm-up gates, allocations, memory growth and hitches
-- [Live play](docs/live.md): the HUD and session stats
-- [Design](docs/design.md): how it works and why, with the precedents it follows
-
-Agents get the same guidance from the server's `guide` tool.
-
-## Requirements
-
-- **Your game:** MonoGame 3.8.5 DesktopGL, targeting .NET 8 or later.
-- **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. It installs
-  beside older SDKs and doesn't change what your game targets.
-- Tested on Windows. CI builds and runs the unit tests on Linux and macOS too, but captures haven't been
-  run there yet.
-- Pixels can differ slightly across GPUs and drivers, so comparisons across machines need a tolerance.
-
-## Enabling in other configurations
+### Build Configurations
 
 Everything follows one property, true by default in Debug:
 
@@ -202,7 +195,26 @@ Everything follows one property, true by default in Debug:
 Set it to `true` to use the tools in Release (the MCP `capture` tool takes `configuration: "Release"`), or
 `false` to turn them off in Debug too.
 
-## Building from source
+## Requirements
+
+- **Your game:** MonoGame 3.8.5 DesktopGL, targeting .NET 8 or later.
+- **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. It installs
+  beside older SDKs and doesn't change what your game targets.
+- Tested on Windows. CI builds and runs the unit tests on Linux and macOS too, but captures haven't been
+  run there yet.
+- Pixels can differ slightly across GPUs and drivers, so comparisons across machines need a tolerance.
+
+## Documentation
+
+- [MCP server](docs/mcp.md): setup for each client, and every tool with examples
+- [Capture](docs/capture.md): command-line options, determinism and output files
+- [Performance](docs/performance.md): warm-up gates, allocations, memory growth and hitches
+- [Live play](docs/live.md): the HUD and session stats
+- [Design](docs/design.md): how it works and why, with the precedents it follows
+
+Agents get the same guidance from the server's `guide` tool.
+
+## Building from Source
 
 The repository builds with the .NET SDK pinned in [`global.json`](global.json) (11.0.100) and runs its
 tests on .NET 11:
