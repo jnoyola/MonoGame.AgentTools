@@ -181,7 +181,7 @@ public class ServerTests
 
             var brief = CaptureBrief.Format(File.ReadAllText(path));
 
-            Assert.Contains("120 frames at 60 fps: 2 s game time, 2 s wall, 1280x720\n", brief, StringComparison.Ordinal);
+            Assert.Contains("120 frames, 60 fps: 2 s game time, 2 s wall, 1280x720\n", brief, StringComparison.Ordinal);
             Assert.Contains("Notes: Esc - exit; show frostnova\n", brief, StringComparison.Ordinal);
             Assert.Contains("Hitches (> 3 ms): 5, largest f41 14 ms: ", brief, StringComparison.Ordinal);
             Assert.Contains("; and 2 more\n", brief, StringComparison.Ordinal);

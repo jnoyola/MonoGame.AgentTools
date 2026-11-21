@@ -614,6 +614,176 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   Study2, capture built and ran it (2 s, about 9 s total), invalid options came back as an error with
   the usage text, and a cropped 8-frame sheet came back labeled.
 
+## Input, timing and replay (v0.2)
+
+A deterministic game's frames depend only on what comes from outside it: input, and the time it's given
+each frame (plus its own random seed, which it owns). Lockstep RTS replays and Quake demos record exactly
+those two streams, and so does this: an `.input` script and, when frame times aren't an even step, a
+`.timing` file. They're independent; a capture can replay either, both or neither. Captures drive an
+unmodified game's input, so an agent sees what happens when the player acts and two builds can be
+compared under the same input; live play records into the same format, so a person plays a moment once
+and an agent replays it exactly.
+
+Before this, captures read the machine's real input: the keyboard was empty, but the mouse position and
+buttons, Caps Lock / Num Lock and any connected gamepad leaked in, so a game that read them wasn't
+deterministic. Every capture is now isolated, script or not.
+
+### Scripts (`.input`)
+
+One event per line, `<when> <control> <down|up|value>`; `#` starts a comment; lines sharing a frame
+apply in file order.
+
+```text
+f60  Space down
+t1.5 MouseLeft down 640,360
+f140 PadLeftStick 0.5,-1
+```
+
+- **When.** `f<n>` is the nth frame (frame 1 is the first timed `Update`, after MonoGame's zero-time
+  one, matching sheets, `frames.csv` and file names). `t<seconds>` is a game time: the first frame
+  whose `TotalGameTime` is at or after it. A line may carry both; `t` wins, `f` is for reading. Under
+  fixed timing or a replayed `.timing` every frame's time is known before the run, so `t` is resolved
+  to a frame at load time, exactly; under real timing it applies on the first frame whose measured
+  total reaches it. The when-tokens are lowercase, so `f10 F1 down` is the F1 key.
+- **Controls** are MonoGame's own names, flat, with the device built in (Unreal's `EKeys` and Source's
+  bind names are flat the same way): `Keys` names bare (`Space`, `F1`, `LeftShift`); `MouseLeft`,
+  `MouseRight`, `MouseMiddle`, `MouseX1`, `MouseX2`; `Mouse x,y` (window client pixels); `MouseWheel`
+  and `MouseWheelH` in notches (one notch is 120 in `ScrollWheelValue`); `Pad` + `Buttons` names
+  (`PadA`, `PadStart`, `PadDPadUp`); `PadLeftStick x,y` and `PadRightStick` (-1..1, y up, as
+  `GamePadThumbSticks`), `PadLeftTrigger`/`PadRightTrigger` (0..1); `Pad2A`… for players 2–4. The
+  one departure from MonoGame's names is the stick click, `PadLeftStickButton` rather than
+  `Buttons.LeftStick`: engines disagree on which of "stick" and "thumbstick" is the click (Unreal's
+  `Gamepad_LeftThumbstick` is; MonoGame's `LeftStick` is), so the names follow Unity's Input System
+  (`leftStick`, `leftStickButton`), where the stick is the movement and the button says it's a button.
+  `PadLeftStick down` fails with a pointer to the button. Case doesn't matter. Stick values are raw,
+  before the game's dead zone.
+- **State holds until changed.** Gamepads up to the highest one a script names are connected for the
+  whole capture (a player plugs in before starting, and adding one mid-run would allocate in the frame
+  loop). The mouse starts at 0,0 with no buttons.
+- **Errors** name the line and the nearest valid control by edit distance (`s.input line 4: unknown
+  control 'Spcae'; did you mean 'Space'?`), and a bad script or `.timing` exits as invalid arguments
+  with the message, not a stack trace. A down and up of a button on the same frame is a warning in the
+  notes: `GetState` never shows it pressed.
+- Precedent: TAS input logs (BizHawk, libTAS) key input to frames for exact replay; they store every
+  frame's full state, which suits tools rather than hand-writing, so this stores only changes.
+
+### Timing
+
+| `timing` | Frame times | Writes `capture.timing` |
+|---|---|---|
+| `fixed` (default) | an even step: the game's `TargetElapsedTime`, or `1/fps` | no; the step is in `summary.json` |
+| `real` | measured: wall time since the previous frame started, minus the capture's own readback and saving | yes |
+| a `.timing` file | replayed: frame n gets the nth recorded `ElapsedGameTime`; `TotalGameTime` is their sum | yes (a copy) |
+
+- **The default step is the game's own** `TargetElapsedTime`, read after `Initialize`, exact to the
+  tick. It used to be `1/fps` with fps defaulting to 60, which ignored a game's own step and was a tick
+  short of MonoGame's 60 Hz default (166,666 against 166,667 ticks), drifting a tick a frame against live
+  play. `fps` is an override, as Unity's `Time.captureFramerate` and Unreal's `-fps=N` are. A script's
+  `step` header sets it too; a conflicting `fps` is an error (within one tick, since 60 fps is 166,666).
+- **A capture never reads the clock** under `fixed` or a replayed file, even for a game with
+  `IsFixedTimeStep = false`; `--agenttools-realtime` only paces wall time (by the replayed times when
+  there are some). So a variable-step game normally gets a perfectly even step in a capture, and bugs
+  that need uneven frame times (frame-rate-dependent physics, smoothing jitter) only show under `real`
+  or a replayed recording. `real` is non-deterministic once and reproducible after: its
+  `capture.timing` replays the run frame for frame. A hidden window isn't synced to a display, so pair
+  `real` with `realtime` for vsync-like times. A fixed-step game asks for even steps, so `real` gives
+  it measured times it wouldn't get live; it's meant for variable-step games. MonoGame's catch-up when
+  a fixed-step game falls behind isn't emulated, and `IsRunningSlowly` isn't reproduced.
+- **`.timing` format:** a 16-byte header (`MGAT`, format version, first frame, reserved), then each
+  frame's `ElapsedGameTime` as a little-endian 32-bit tick count: exact to `GameTime`'s 100 ns tick, so
+  replayed totals match the originals with no rounding drift. Binary because nobody reads it by hand, and
+  as text it would bury an `.input` file's events in numbers an agent would read past. Values near
+  16.67 ms differ in their last digits, so run-length coding wouldn't shrink it. Per hour: 0.9 MB at
+  60 fps, 2.1 MB at 144 fps, 14 MB uncapped at 1,000 fps. A frame over 214 s is stored as that maximum
+  (MonoGame caps a step at `MaxElapsedTime`, 0.5 s by default).
+- **Length.** Frames, else the frame nearest the duration, else a replayed `.timing` file's length (the
+  session it came from), else 1 s extended to the last event plus 1 s, to show the reaction to it.
+  Events after the end are counted in the notes (`12 input events after f300 not applied`): replaying
+  the start of a long recording is legitimate. Seeded uneven timing (`jitter:<seed>`) is a possible
+  later mode.
+
+### Injection
+
+The game keeps calling `Keyboard.GetState()`, `Mouse.GetState()` and `GamePad.GetState()` and handling
+`Window.KeyDown`/`KeyUp`; nothing in it changes. Verified against MonoGame 3.8.5's source and assembly:
+
+| Device | How | Why |
+|---|---|---|
+| Keyboard | Write `Keyboard._keys` (the list `GetState` returns, filled by `SdlGamePlatform` from SDL key events) and raise `Window.OnKeyDown`/`OnKeyUp` on edges, plus `OnTextInput` for Back, Tab, Enter, Escape and Delete, as the platform does for keys whose SDL keycode is a control character | The same list and events a real key produces |
+| Lock keys | Swap `Sdl.Keyboard.GetModState` to report none | Real Caps Lock / Num Lock otherwise leak in |
+| Mouse | Swap `Sdl.Mouse.GetGlobalState` to return the scripted position (plus the window origin `Mouse.PlatformGetState` subtracts) and buttons, and `Sdl.Mouse.WarpInWindow` so `Mouse.SetPosition` moves the scripted cursor, never the user's; set `Mouse.ScrollX`/`ScrollY` | `Mouse.GetState` reads the OS cursor (`SDL_GetGlobalMouseState`), not SDL events, so events can't drive it |
+| Gamepads | An SDL virtual game controller per pad (`SDL_JoystickAttachVirtualEx`, SDL 2.24+; MonoGame 3.8.5 ships 2.32.10), registered with `GamePad.AddDevice`; each frame's changes set with `SDL_JoystickSetVirtualButton`/`Axis`, then `SDL_JoystickUpdate`. Real pads are removed from `GamePad.Gamepads` for the run | Through SDL's real controller layer and MonoGame's unchanged `GetState`; a managed fake would pass fake handles to SDL calls such as `GetCapabilities`. Axes invert MonoGame's `GetFromSdlAxis` (negative over 32768, positive over 32767, Y flipped); SDL rests a virtual trigger at the axis minimum and maps the full range onto 0..32767, so a trigger value t is `t × 65535 − 32768` |
+
+- MonoGame's DesktopGL platform reaches SDL through delegates in mutable static fields, so swapping a
+  field is enough: no runtime detour. Replacements are bridged to the fields' internal delegate types by
+  a `DynamicMethod` built once (the return types differ only as enum and underlying integer); scroll
+  fields are set through a `DynamicMethod` setter, since `FieldInfo.SetValue` boxes. Nothing per frame
+  allocates: a probe game capture with keyboard, mouse and two gamepads allocated 0 B on the game thread.
+- Mouse and lock-key swaps happen before `Initialize`. After it (MonoGame reads SDL's events once
+  then, so keys held and pads connected at startup register), the key list is emptied, real pads are
+  hidden and the virtual ones connected. Originals are restored when the capture ends. Not isolated:
+  MonoGame's raw `Joystick` API.
+- Every member is bound up front, the way `GameHooks` binds `Update` and `Draw`; a MonoGame version that
+  renames one fails before the first frame with the member's name, never half-working.
+- **Status: experimental.** Feeding synthetic input into the engine's normal input path, so game code
+  can't tell it apart, is how Unity's `InputTestFixture` and Godot's `Input.parse_input_event` work; doing
+  it by swapping MonoGame's internal SDL bindings depends on non-public members. The standard
+  alternative is a public input-source hook in MonoGame; no issue requests one yet
+  ([#4558](https://github.com/MonoGame/MonoGame/issues/4558), for the pipeline tool, is the nearest),
+  and contributing one would let this use it. A runtime detour (MonoMod, Harmony) was rejected: it
+  rewrites compiled code, adds a dependency and is exposed to JIT inlining and platform memory
+  protection, for nothing over swapping fields MonoGame already exposes. DesktopGL only, like the rest
+  of capture: the same managed bindings on Windows, Linux and macOS; WindowsDX reads input from Windows
+  messages.
+
+### Recording
+
+`--agenttools-record <path>` writes `<path>.input`, and `<path>.timing` for a variable-step game.
+
+- Sampled once per `Update` (the monitor component in live play; the frame loop in a capture, where it
+  records what the game read, which is how the replay test checks injection) through MonoGame's own
+  `GetState` calls, gamepads with `GamePadDeadZone.None` so the replaying game applies its own dead
+  zone. Counts `Update` calls, not draws. Only changes are written.
+- Fixed step writes `step <TargetElapsedTime ms to 4 decimals>` and events as `f<n> t<s>`; variable step
+  writes `step variable`, events as `t<s>` only and the `.timing` file. Times are written to the tick
+  (seconds to 7 decimals). Sticks get 5 decimals, enough to map back to the same 16-bit SDL value;
+  verified: a recorded stick of 0.5 reads 0.50002 and replays to the same axis value.
+- A press and release within one frame is lost: `GetState` never shows it, though `KeyDown`/`KeyUp`
+  fire, so the replay lacks those two events. Verified end to end: recording a scripted capture and
+  replaying the recording reproduced every value the probe game read on every frame, except the
+  event counts of a Caps Lock tap inside one frame, and with `real` timing every frame's elapsed time.
+- **Written as it goes** through two 64 KB buffers per file flushed by a worker thread, the way Unreal
+  Insights' trace buffers and ETW sessions bound memory and keep data on a crash. Lines are formatted on
+  the game thread straight into the buffer (`IUtf8SpanFormattable.TryFormat`, no allocation); a full
+  buffer, or one that has waited 1 s, goes to the worker. If the worker falls behind, a third buffer is
+  allocated and the stats count it; input is never dropped. The partial buffer is flushed at exit and on
+  an unhandled exception; a process killed outright (a debugger stopping it) runs no handlers and loses
+  at most the last second, verified by killing a recording game.
+- Sizing, to be confirmed on real play: a few to about 20 button events/s (an RTS player at 300–400
+  actions per minute is about 10 presses and 10 releases a second), plus up to one event per frame each
+  for mouse motion and moving sticks, about 8 per frame at worst (about 500/s at 60 fps, 8 KB/s); 64 KB
+  is about 8 s at that rate, and the 1 s flush means the worker rarely sees a full one. The live stats'
+  `recording` section reports events, peak events per second, buffer swaps and extra buffers. A 3 s
+  uncapped variable-step probe session (15,664 frames) recorded with 0 B allocated on any thread.
+
+### Determinism
+
+A replay matches the original only if the game is deterministic given input and time: seeded
+randomness, and no gameplay reads of the wall clock, `Stopwatch` or `DateTime`. The capture can't detect
+a divergence on its own; comparing a replay's sheet with the original's shows one.
+
+### Not in this step
+
+- Input on contact-sheet labels. Held state alone misses taps between tiles; a later version could show
+  held input plus presses and releases since the previous tile (as fighting-game input histories do),
+  and mark the mouse position, since the OS cursor isn't in the frame.
+- Text input (`Window.TextInput` beyond control characters): a recording can't tell typing from key
+  presses, so it waits for a game that needs it.
+- Touch, mouse-relative mode (`SDL_SetRelativeMouseMode` for mouse-look), key repeat (a held key raises
+  one `KeyDown`, where SDL repeats it).
+- Driving input in live play (bots, assisted play): replay is capture-only.
+- Contributing the MonoGame input hook.
+
 ## Open questions
 
 - Confirm the VS Code extension honours `.mcp.json` from the repo root when the workspace is a subfolder.
@@ -639,7 +809,8 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
 2. ~~`[Conditional]` stripping + targets~~ done and verified via the packed package.
 3. ~~`GraphicsDevice.Metrics`~~ done (per frame). Remaining: `BeginScope`/`EndScope` per-pass deltas;
    ~~HUD~~ done.
-4. `IInputSource`, scripted input, record/replay.
+4. ~~Scripted input, record/replay~~ done (2026-11-19; see Input, timing and replay), by injection into
+   MonoGame's own input path rather than an `IInputSource` the game would have to adopt.
 5. Session mode over a named pipe.
 6. `MonoGame.AgentTools.Mcp` server: ~~tools, guide content~~ done (see MCP server). ~~`.mcp.json`
    merge from the library's targets~~ done (2026-11-18; see Setup step 3).

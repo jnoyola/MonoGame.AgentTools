@@ -78,8 +78,10 @@ Builds the game and runs its real `Update` and `Draw` at a fixed step with a hid
 | Option | Default | |
 |---|---|---|
 | `project` | the only game | A `.csproj` or its folder, when the workspace has several games |
-| `seconds` / `frames` | 1 s | How much game time to capture |
-| `fps` | 60 | Fixed steps per second |
+| `seconds` / `frames` | 1 s | How much game time to capture; with input, to 1 s after its last event |
+| `fps` | the game's step | Fixed steps per second, overriding the game's `TargetElapsedTime` |
+| `input` | | Input to play: the script itself, an `.input` file, or a capture's name ([Input and replay](input.md)) |
+| `timing` | `fixed` | `fixed`, `real`, a `.timing` file, or a capture's name to replay its frame times |
 | `size` | `1280x720` | Backbuffer size, the same on every machine; `native` for the game's own |
 | `save` | `all` | Frames to write as PNG: `all`, `none`, `every:N` or a list such as `1,30,60` |
 | `realtime` | off | Pace frames to wall-clock time, as vsync would; for performance numbers |
@@ -103,6 +105,10 @@ Examples:
 { "seconds": 8, "save": "none", "realtime": true }
 { "seconds": 2, "gameArgs": ["--level", "3"], "name": "before" }
 { "seconds": 2, "name": "after", "sheet": { "against": "before" } }
+{ "input": "f30 Space down
+f45 Space up", "name": "jump" }
+{ "input": "jump", "name": "jump-fixed", "sheet": { "against": "jump" } }
+{ "timing": "real", "realtime": true, "seconds": 10, "name": "jitter" }
 ```
 
 ### contact_sheet

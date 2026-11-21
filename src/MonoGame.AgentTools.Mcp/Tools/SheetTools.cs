@@ -138,21 +138,48 @@ internal sealed partial class SheetTools(Workspace workspace)
         return json.RootElement.TryGetProperty("fps", out var fps) ? fps.GetDouble() : 60;
     }
 
-    /// <summary>Saved frames in order. Frame N is drawn after N fixed steps, at N / fps game seconds.</summary>
+    /// <summary>
+    /// Saved frames in order, each with its game time: from the capture's frames.csv, which holds every
+    /// frame's time (so replayed and real timing label correctly), else N / fps for frame N.
+    /// </summary>
     internal static List<SheetTile> SavedFrames(string framesFolder, double fps)
     {
         if (!Directory.Exists(framesFolder))
             return [];
+        var times = FrameTimes(Path.Combine(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(framesFolder))!, "frames.csv"));
         return Directory.EnumerateFiles(framesFolder, "f*.png")
             .Select(path => (path, match: FrameFile().Match(Path.GetFileName(path))))
             .Where(f => f.match.Success)
             .Select(f =>
             {
                 var frame = int.Parse(f.match.Groups[1].Value, CultureInfo.InvariantCulture);
-                return new SheetTile(frame, frame / fps, f.path);
+                return new SheetTile(frame, times.TryGetValue(frame, out var seconds) ? seconds : frame / fps, f.path);
             })
             .OrderBy(t => t.Frame)
             .ToList();
+    }
+
+    /// <summary>Game seconds by frame, from frames.csv's sim_s column; empty when there's no table.</summary>
+    internal static Dictionary<int, double> FrameTimes(string csvPath)
+    {
+        var times = new Dictionary<int, double>();
+        if (!File.Exists(csvPath))
+            return times;
+        using var reader = new StreamReader(csvPath);
+        var header = reader.ReadLine()?.Split(',') ?? [];
+        var frameColumn = Array.IndexOf(header, "frame");
+        var timeColumn = Array.IndexOf(header, "sim_s");
+        if (frameColumn < 0 || timeColumn < 0)
+            return times;
+        while (reader.ReadLine() is { } line)
+        {
+            var cells = line.Split(',');
+            if (cells.Length > Math.Max(frameColumn, timeColumn)
+                && int.TryParse(cells[frameColumn], NumberStyles.Integer, CultureInfo.InvariantCulture, out var frame)
+                && double.TryParse(cells[timeColumn], NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+                times[frame] = seconds;
+        }
+        return times;
     }
 
     [GeneratedRegex(@"^f(\d+)\.png$")]

@@ -51,3 +51,15 @@ private bytes too, so steady native growth shows up. Steady growth means somethi
 and kept, or never disposed.
 
 The game has to exit normally (closing the window or calling `Exit`) for the files to be written.
+
+## Recording input
+
+```
+MyGame --agenttools-record sessions/boss
+```
+
+Writes what the game reads from the keyboard, mouse and gamepads to `sessions/boss.input` as you play,
+and each frame's elapsed time to `sessions/boss.timing` for a variable-step game. A capture replays it
+exactly; see [Input and replay](input.md). The files are written as you go, so a crash keeps them, and a
+killed process loses at most the last second. With `--agenttools-stats`, `live.json` gets a `recording`
+section: events, peak events per second, and buffer use.

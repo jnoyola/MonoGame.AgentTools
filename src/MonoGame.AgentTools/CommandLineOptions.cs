@@ -1,4 +1,5 @@
 using System.Globalization;
+using MonoGame.AgentTools.Timing;
 
 namespace MonoGame.AgentTools;
 
@@ -56,23 +57,31 @@ internal sealed record CommandLineOptions
 
     /// <summary>Batch capture output directory; null in live mode.</summary>
     public string? CaptureDirectory { get; init; }
-    public int Fps { get; init; } = 60;
-    public double DurationSeconds { get; init; } = 1.0;
+    /// <summary>Fixed steps per second; null uses the game's <c>TargetElapsedTime</c>.</summary>
+    public int? Fps { get; init; }
+    /// <summary>Game seconds to capture; null runs 1 s, or to the end of the input or timing being replayed.</summary>
+    public double? DurationSeconds { get; init; }
     public int? FrameCount { get; init; }
     /// <summary>Backbuffer size; null keeps the game's own.</summary>
     public (int Width, int Height)? Size { get; init; } = (DefaultWidth, DefaultHeight);
     public FrameSelection Save { get; init; } = FrameSelection.All;
     public bool JitNames { get; init; }
-    /// <summary>Pace frames to wall-clock time at <see cref="Fps"/>, as vsync would. For performance runs.</summary>
+    /// <summary>Pace frames to wall-clock time at the step, as vsync would. For performance runs.</summary>
     public bool Realtime { get; init; }
+    /// <summary>Capture: an <c>.input</c> script to play.</summary>
+    public string? InputPath { get; init; }
+    /// <summary>Capture: how frames are timed; null is fixed, or the <c>.timing</c> file beside <see cref="InputPath"/>.</summary>
+    public TimingMode? Timing { get; init; }
+    /// <summary>Capture: the <c>.timing</c> file to replay when <see cref="Timing"/> is <see cref="TimingMode.File"/>.</summary>
+    public string? TimingPath { get; init; }
+    /// <summary>Record the input the game reads to this path's <c>.input</c> (and <c>.timing</c>).</summary>
+    public string? RecordPath { get; init; }
     /// <summary>Live mode: write a stats summary here when the game exits.</summary>
     public string? StatsPath { get; init; }
     /// <summary>Live mode: show the HUD from the start (backtick toggles it either way).</summary>
     public bool Hud { get; init; }
 
     public bool IsCapture => CaptureDirectory is not null;
-
-    public int Frames => FrameCount ?? Math.Max(1, (int)Math.Round(DurationSeconds * Fps));
 
     public static CommandLineOptions Parse(IReadOnlyList<string> args)
     {
@@ -93,6 +102,9 @@ internal sealed record CommandLineOptions
             {
                 "capture" => options with { CaptureDirectory = Path.GetFullPath(Value()) },
                 "fps" => options with { Fps = FrameSelection.ParsePositiveInt(Value(), arg) },
+                "input" => options with { InputPath = Path.GetFullPath(Value()) },
+                "timing" => ParseTiming(options, Value()),
+                "record" => options with { RecordPath = Path.GetFullPath(Value()) },
                 "duration" => options with { DurationSeconds = ParseSeconds(Value(), arg) },
                 "frames" => options with { FrameCount = FrameSelection.ParsePositiveInt(Value(), arg) },
                 "size" => options with { Size = ParseSize(Value(), arg) },
@@ -104,6 +116,8 @@ internal sealed record CommandLineOptions
                 _ => throw new ArgumentException($"Unknown option {arg}. {Usage}"),
             };
         }
+        if (!options.IsCapture && (options.InputPath is not null || options.Timing is not null))
+            throw new ArgumentException($"{Prefix}input and {Prefix}timing are capture-only: live play takes its input from the player and its time from the clock.");
         if (options.IsCapture && options.Hud)
             throw new ArgumentException($"{Prefix}hud is live-only: it shows wall-clock measurements, which would make captured frames differ between runs.");
         return options;
@@ -111,8 +125,16 @@ internal sealed record CommandLineOptions
 
     public const string Usage =
         "Options: --agenttools-capture <dir> [--agenttools-duration <s> | --agenttools-frames <n>] [--agenttools-fps <n>] " +
-        "[--agenttools-size <WxH>|native] [--agenttools-save all|none|every:N|<f1,f2,...>] [--agenttools-realtime] [--agenttools-jit-names]; " +
-        "live: [--agenttools-stats <file.json>] [--agenttools-hud]";
+        "[--agenttools-size <WxH>|native] [--agenttools-save all|none|every:N|<f1,f2,...>] [--agenttools-realtime] [--agenttools-jit-names] " +
+        "[--agenttools-input <file.input>] [--agenttools-timing fixed|real|<file.timing>]; " +
+        "live: [--agenttools-stats <file.json>] [--agenttools-hud]; either: [--agenttools-record <path>]";
+
+    private static CommandLineOptions ParseTiming(CommandLineOptions options, string value) => value.ToLowerInvariant() switch
+    {
+        "fixed" => options with { Timing = TimingMode.Fixed, TimingPath = null },
+        "real" => options with { Timing = TimingMode.Real, TimingPath = null },
+        _ => options with { Timing = TimingMode.File, TimingPath = Path.GetFullPath(value) },
+    };
 
     private static double ParseSeconds(string text, string option)
     {
