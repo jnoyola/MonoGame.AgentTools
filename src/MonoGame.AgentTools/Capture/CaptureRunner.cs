@@ -11,9 +11,12 @@ using MonoGame.AgentTools.Timing;
 namespace MonoGame.AgentTools.Capture;
 
 /// <summary>
-/// Batch capture: initializes the game without entering MonoGame's run loop (so the window is never
-/// shown), then drives the game's real <c>Update</c>/<c>Draw</c> at a fixed step and reads each frame
-/// back from the backbuffer before it's presented. The same inputs produce the same frames.
+/// Batch runs (capture and profile): initializes the game without entering MonoGame's run loop (so the
+/// window is never shown), then drives the game's real <c>Update</c>/<c>Draw</c> at a fixed step and reads
+/// frames back from the backbuffer before they're presented. The same inputs produce the same frames. A
+/// profile is the same loop paced to the step in real time, with no frames saved.
+/// A profile measures frames as they're played, like Unreal's FPS charts and Unity Performance Testing's
+/// <c>Measure.Frames</c>, over a run that repeats frame for frame.
 /// Precedent for driving the real loop at a fixed rate: Unity <c>Time.captureFramerate</c>, Godot
 /// <c>--fixed-fps</c>/<c>--write-movie</c>, Unreal <c>-deterministic -fps=N</c>.
 /// </summary>
@@ -33,7 +36,7 @@ internal static class CaptureRunner
         {
             // A bad script or timing file is the caller's to fix: the message, not a stack trace.
             Console.Error.WriteLine($"MonoGame.AgentTools: {e.Message}");
-            TryWriteError(options.CaptureDirectory!, e.Message);
+            TryWriteError(options.OutputDirectory!, e.Message);
             Environment.Exit(AgentTools.InvalidArgumentsExitCode);
             return;
         }
@@ -47,7 +50,7 @@ internal static class CaptureRunner
         {
             exitCode = AgentTools.CaptureFailedExitCode;
             Console.Error.WriteLine($"MonoGame.AgentTools capture failed: {e}");
-            TryWriteError(options.CaptureDirectory!, e.ToString());
+            TryWriteError(options.OutputDirectory!, e.ToString());
         }
         Console.Out.Flush();
         Environment.Exit(exitCode);
@@ -56,7 +59,8 @@ internal static class CaptureRunner
     private static void Run(Game game, CommandLineOptions options, AgentToolsSetup setup, CaptureInputs inputs)
     {
         var metrics = setup.CustomMetrics;
-        var outDir = options.CaptureDirectory!;
+        var outDir = options.OutputDirectory!;
+        var profile = options.Mode == RunMode.Profile;
         var framesDir = Path.Combine(outDir, FramesFolder);
         Directory.CreateDirectory(framesDir);
         foreach (var stale in Directory.EnumerateFiles(framesDir, "f????.png"))
@@ -66,7 +70,7 @@ internal static class CaptureRunner
         var (script, timingMode, timingPath, recordedTiming) = inputs;
 
         Precompile.Types(typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters), typeof(ResourceCounters), typeof(ProcessMemory),
-            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
+            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputText));
         ConfigureDevice(game, options);
         var hooks = GameHooks.Bind(game);
         if (!hooks.BeforeRun())
@@ -84,7 +88,6 @@ internal static class CaptureRunner
         var frameCount = FrameCount(options, plannedClock, script, recordedTiming);
         var clock = timingMode == TimingMode.Real ? FrameClock.Real(step, frameCount) : plannedClock;
         var playback = script is null ? null : InputPlayback.Create(script, clock);
-        using var recorder = options.RecordPath is { } record ? InputRecorder.Start(game, record) : null;
 
         var notes = new List<string>(setup.Notes);
         if (inputNote is not null)
@@ -93,6 +96,9 @@ internal static class CaptureRunner
             notes.AddRange(playback.Warnings);
         if (script is { VariableStep: true } && timingMode == TimingMode.Fixed)
             notes.Add("The input was recorded at a variable step and is replayed at a fixed one: inputs keep their times, but the game's state can drift from the session's.");
+        if (profile && plannedClock.Total(frameCount) < TimeSpan.TicksPerSecond * MinimumProfileSeconds)
+            notes.Add(string.Create(CultureInfo.InvariantCulture,
+                $"A profile under {MinimumProfileSeconds} s can end before the performance gate opens, so its numbers may include warm-up. The default is {options.DefaultSeconds} s."));
 
         var device = game.GraphicsDevice;
         var width = device.PresentationParameters.BackBufferWidth;
@@ -135,7 +141,6 @@ internal static class CaptureRunner
             time.TotalGameTime = TimeSpan.FromTicks(clock.Total(frame));
             playback?.Apply(frame, time.TotalGameTime.Ticks, injector!);
             injector?.EndFrame();
-            recorder?.Sample(time);
 
             jit?.BeginFrame(frame);
             var before = RuntimeCounters.Read();
@@ -189,9 +194,10 @@ internal static class CaptureRunner
                 captureWork = Stopwatch.GetElapsedTime(workStart).Ticks;
             }
             hooks.EndDraw();
-            // Real timing paces to the step as vsync would, so the times measured are the game's own
-            // frame-to-frame variation and the capture covers the game time it was asked for.
-            if (options.Realtime || clock.Mode == TimingMode.Real)
+            // A profile paces to the step as vsync would, so frame times include the waits a player's do.
+            // Real timing does too, so the times measured are the game's own frame-to-frame variation and
+            // the run covers the game time it was asked for.
+            if (profile || clock.Mode == TimingMode.Real)
                 WaitUntil(wall, loopStart + TimeSpan.FromTicks(clock.IsKnown ? clock.Total(frame) : step * frame));
         }
         warmup.Finish(wall.Elapsed.TotalSeconds);
@@ -213,23 +219,18 @@ internal static class CaptureRunner
             if (playback.Applied < playback.Count)
                 notes.Add(string.Create(CultureInfo.InvariantCulture, $"{playback.Count - playback.Applied} input events after f{frameCount} not applied."));
         }
-        if (recorder is not null)
-        {
-            recorder.Dispose();
-            sections["recording"] = recorder.Summary();
-        }
 
         var info = new ReportInfo
         {
-            Mode = "capture",
+            Mode = profile ? "profile" : "capture",
             Game = game.GetType().FullName ?? game.GetType().Name,
             Width = width,
             Height = height,
             Fps = Math.Round(TimeSpan.TicksPerSecond / (double)step, 3),
             WallSeconds = wall.Elapsed.TotalSeconds,
-            FrameTimeBasis = options.Save.Kind == FrameSelectionKind.None && options.Realtime
-                ? "CPU time of Update + Draw on the game thread"
-                : "CPU time of Update + Draw on the game thread; saving PNGs adds wall time and background JIT, so for performance numbers use --agenttools-save none --agenttools-realtime",
+            FrameTimeBasis = profile
+                ? "CPU time of Update + Draw on the game thread, paced to the step in real time"
+                : "CPU time of Update + Draw on the game thread, run as fast as frames render; saving PNGs adds wall time and background JIT, so take performance numbers from a profile",
             CustomMetricNames = metrics.Select(m => m.Name).ToArray(),
             CustomMetricValues = metricValues,
             Notes = notes,
@@ -242,28 +243,30 @@ internal static class CaptureRunner
                 ["sheetFrames"] = sheetFrames,
                 ["sheetColumns"] = Math.Min(4, sheetFrames.Length),
                 ["table"] = "frames.csv",
-                ["realtime"] = options.Realtime,
             },
         };
         Report.WriteCsv(Path.Combine(outDir, "frames.csv"), info, samples);
         Report.WriteSummary(Path.Combine(outDir, "summary.json"), info, analysis);
-        Console.WriteLine($"MonoGame.AgentTools: captured {frameCount} frames at {width}x{height} to {outDir}");
+        Console.WriteLine($"MonoGame.AgentTools: {(profile ? "profiled" : "captured")} {frameCount} frames at {width}x{height} to {outDir}");
     }
 
+    /// <summary>A profile shorter than this is noted: the performance gate typically opens a few seconds in.</summary>
+    private const int MinimumProfileSeconds = 5;
+
     /// <summary>
-    /// Frames to capture: as given; else the frame nearest the duration; else as many as a replayed timing
-    /// file holds (the session it came from); else 1 s, extended to the last input event plus 1 s, to show
-    /// the reaction to it.
+    /// Frames to run: the duration given, in frames or the frame nearest its seconds; else as many as a
+    /// replayed timing file holds (the session it came from); else the mode's default (1 s for a capture, 8 s
+    /// for a profile), extended to the last input event plus 1 s, to show the reaction to it.
     /// </summary>
     internal static int FrameCount(CommandLineOptions options, FrameClock clock, InputScript? script, long[]? recordedTiming)
     {
-        if (options.FrameCount is int frames)
+        if (options.Duration is { Frames: int frames })
             return frames;
-        if (options.DurationSeconds is double seconds)
+        if (options.Duration is { Seconds: double seconds })
             return NearestFrame(clock, (long)Math.Round(seconds * TimeSpan.TicksPerSecond));
         if (recordedTiming is { Length: > 0 })
             return recordedTiming.Length;
-        var count = NearestFrame(clock, TimeSpan.TicksPerSecond);
+        var count = NearestFrame(clock, (long)(options.DefaultSeconds * TimeSpan.TicksPerSecond));
         if (script is { Events.Count: > 0 })
         {
             var last = script.Events.Max(e => e.Ticks >= 0 ? e.Ticks : clock.Total(e.Frame));
@@ -303,8 +306,10 @@ internal static class CaptureRunner
         }
     }
 
-    private const string InputFile = "capture.input";
-    private const string TimingFileName = "capture" + TimingFile.Extension;
+    /// <summary>The base name of the input and timing a capture keeps: <c>capture.input</c> and <c>capture.timing</c>.</summary>
+    internal const string Recording = "capture";
+    private const string InputFile = Recording + InputRecorder.InputExtension;
+    private const string TimingFileName = Recording + TimingFile.Extension;
 
     /// <summary>The timing used, kept in the capture folder (when it isn't an even step) so the capture can be replayed.</summary>
     private static Dictionary<string, object> TimingSection(FrameClock clock, string outDir, string? timingPath)
@@ -361,13 +366,6 @@ internal static class CaptureRunner
             var mode = options.Timing ?? (beside is not null && File.Exists(beside) ? TimingMode.File : TimingMode.Fixed);
             var timingPath = mode == TimingMode.File ? options.TimingPath ?? beside! : null;
             var recorded = timingPath is not null ? TimingFile.Read(timingPath) : null;
-            if (options.RecordPath is { } record)
-            {
-                var recordBase = Path.ChangeExtension(record, null);
-                foreach (var source in new[] { options.InputPath, timingPath })
-                    if (source is not null && SamePath(Path.ChangeExtension(source, null), recordBase))
-                        throw new ArgumentException($"--agenttools-record {record} would overwrite {source}, which this capture replays. Record to another path.");
-            }
             if (script?.StepTicks is long step && options.Fps is int fps && Math.Abs(TimeSpan.TicksPerSecond / fps - step) > 1)
                 throw new ArgumentException(string.Create(CultureInfo.InvariantCulture,
                     $"The input was recorded at a {step / (double)TimeSpan.TicksPerMillisecond:0.####} ms step, but --agenttools-fps {fps} asks for {1000.0 / fps:0.####} ms."));

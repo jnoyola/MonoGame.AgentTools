@@ -4,9 +4,10 @@ using System.Runtime.CompilerServices;
 namespace MonoGame.AgentTools.Runtime;
 
 /// <summary>
-/// JIT-compiles the tools' own per-frame code up front, so the measuring code never shows up as a
-/// first-use cost in the numbers it measures. Only for non-generic code (generic instantiations aren't
-/// covered, which is why games should prewarm by running their real paths instead).
+/// JIT-compiles the tools' own per-frame code up front and runs their static constructors, so the
+/// measuring code never shows up as a first-use cost in the numbers it measures: neither compiling nor
+/// static tables built on first use. Only for non-generic code (generic instantiations aren't covered,
+/// which is why games should prewarm by running their real paths instead).
 /// </summary>
 internal static class Precompile
 {
@@ -16,6 +17,7 @@ internal static class Precompile
     {
         foreach (var type in types)
         {
+            RuntimeHelpers.RunClassConstructor(type.TypeHandle);
             foreach (var method in type.GetMethods(All).Cast<MethodBase>().Concat(type.GetConstructors(All)))
             {
                 if (!method.IsAbstract && !method.ContainsGenericParameters && method.GetMethodBody() is not null)

@@ -53,18 +53,20 @@ which clients that start servers without a shell can't run.
 |---|---|
 | [`list_games`](#list_games) | Game projects in the workspace that reference the package |
 | [`capture`](#capture) | Builds the game, captures it, returns a reading of the run and a contact sheet |
+| [`profile`](#profile) | Builds the game and runs it paced in real time for performance numbers |
 | [`contact_sheet`](#contact_sheet) | Another sheet from an existing capture: a closer time range, a crop, or a comparison |
 | [`gif`](#gif) | An animated GIF of a capture for a person to watch |
 | [`guide`](#guide) | Setup, options and how to read the measurements, in depth |
 
-Captures are written to `.agenttools/captures/<name>` in the workspace, a folder that ignores itself in
-git. Unnamed captures are pruned to the 10 most recent; named ones are kept, for comparing before and
-after a change.
+Captures and profiles are written to `.agenttools/captures/<name>` in the workspace, a folder that
+ignores itself in git. Unnamed ones are pruned to the 10 most recent of each; named ones are kept, for comparing
+before and after a change. Live play records sessions beside them, in `.agenttools/sessions`
+([Live play](live.md#sessions)).
 
 ### list_games
 
-Lists the executable projects under the workspace that reference `MonoGame.AgentTools`. `capture` needs
-a `project` only when there's more than one.
+Lists the executable projects under the workspace that reference `MonoGame.AgentTools`. `capture` and
+`profile` need a `project` only when there's more than one.
 
 ```text
 MyGame\MyGame.csproj
@@ -74,23 +76,25 @@ Tools\LevelViewer\LevelViewer.csproj
 ### capture
 
 Builds the game and runs its real `Update` and `Draw` at a fixed step with a hidden window, then exits.
+Each option that reaches the game is its [command-line flag](capture.md#options) in camelCase, and a
+rejected option comes back naming the parameter.
 
 | Option | Default | |
 |---|---|---|
 | `project` | the only game | A `.csproj` or its folder, when the workspace has several games |
-| `seconds` / `frames` | 1 s | How much game time to capture; with input, to 1 s after its last event |
+| `duration` | `1s` | `"3s"` (game seconds) or `"150f"` (frames); with input, to 1 s after its last event |
 | `fps` | the game's step | Fixed steps per second, overriding the game's `TargetElapsedTime` |
-| `input` | | Input to play: the script itself, an `.input` file, or a capture's name ([Input and replay](input.md)) |
-| `timing` | `fixed` | `fixed`, `real`, a `.timing` file, or a capture's name to replay its frame times |
+| `input` | | Input to play: the script itself, an `.input` file, or a capture's or session's name ([Input and replay](input.md)) |
+| `timing` | `fixed` | `fixed`, `real`, a `.timing` file, or a capture's or session's name to replay its frame times |
 | `size` | `1280x720` | Backbuffer size, the same on every machine; `native` for the game's own |
 | `save` | `all` | Frames to write as PNG: `all`, `none`, `every:N` or a list such as `1,30,60` |
-| `realtime` | off | Pace frames to wall-clock time, as vsync would; for performance numbers |
-| `jitNames` | off | Name the methods JIT-compiled during each hitch |
+| `jitNames` | off | Name the methods JIT-compiled during each hitch; allocates on another thread and slows those frames |
 | `gameArgs` | | Your game's own command-line flags, such as a scene or camera |
 | `sheet` | 12 frames | The contact sheet: `from`, `to`, `count`, `columns`, `crop`, `against` |
 | `name` | `<game>-<time>` | Output folder; a named capture is kept |
 | `detail` | `brief` | `brief`: one line per check. `full`: `summary.json` itself |
 | `configuration` | `Debug` | Build configuration; others need `AgentToolsEnabled` |
+| `framework` | the first listed | For a game with several `TargetFrameworks`, which one to build and run |
 | `timeoutSeconds` | 300 | Kill the game after this long |
 
 The brief result is one plain-text line per check, about 1 KB, with each verdict stated. There's an
@@ -100,14 +104,28 @@ so sheets stay within that.
 Examples:
 
 ```json
-{ "seconds": 2 }
-{ "seconds": 2, "sheet": { "from": 0.4, "to": 0.9, "count": 12, "crop": "400,150,480,360" } }
-{ "seconds": 8, "save": "none", "realtime": true }
-{ "seconds": 2, "gameArgs": ["--level", "3"], "name": "before" }
-{ "seconds": 2, "name": "after", "sheet": { "against": "before" } }
+{ "duration": "2s" }
+{ "duration": "2s", "sheet": { "from": 0.4, "to": 0.9, "count": 12, "crop": "400,150,480,360" } }
+{ "duration": "2s", "gameArgs": ["--level", "3"], "name": "before" }
+{ "duration": "2s", "name": "after", "sheet": { "against": "before" } }
 { "input": "f30 Space down\nf45 Space up", "name": "jump" }
 { "input": "jump", "name": "jump-fixed", "sheet": { "against": "jump" } }
-{ "timing": "real", "seconds": 10, "name": "jitter" }
+{ "input": "MyGame-20261121-093000", "name": "boss" }
+{ "timing": "real", "duration": "10s", "name": "jitter" }
+```
+
+### profile
+
+Runs the game paced to its step in real time, as your frames are when you play, with a hidden window and
+no frames saved: the run for performance numbers ([Performance](performance.md)). It takes the same
+options as `capture` except `save` and `sheet`, and runs `8s` by default; under 5 s the warm-up gates may
+not open, and the notes say so. It returns the brief and the game's own 12-frame `sheet.png`, to confirm
+what ran.
+
+```json
+{ }
+{ "duration": "30s", "gameArgs": ["--level", "3"] }
+{ "input": "MyGame-20261121-093000", "name": "boss-perf" }
 ```
 
 ### contact_sheet

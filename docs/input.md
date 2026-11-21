@@ -1,8 +1,8 @@
 # Input and replay
 
-A capture can drive your game's keyboard, mouse and gamepads from a script, so an agent can see what
-happens when the player acts. Live play can record what you pressed into the same format, so you play a
-moment once and an agent replays it exactly. Your game doesn't change: it keeps calling
+A capture or profile can drive your game's keyboard, mouse and gamepads from a script, so an agent can
+see what happens when the player acts. Live play records what you pressed into the same format, so you
+play a moment once and an agent replays it exactly. Your game doesn't change: it keeps calling
 `Keyboard.GetState()`, `Mouse.GetState()` and `GamePad.GetState()`.
 
 Every capture is also isolated from the machine it runs on: your cursor, Caps Lock and any connected
@@ -58,27 +58,31 @@ never shows it pressed.
 MyGame --agenttools-capture out/jump --agenttools-input jump.input
 ```
 
-Through MCP, `input` takes the script itself, a file, or a capture's name to replay its input:
+Through MCP, `capture` and `profile` take `input` as the script itself, a file, or the name of a
+capture or a [session](#recording) to replay its input:
 
 ```json
 { "input": "f60 Space down\nf75 Space up", "name": "jump" }
 { "input": "jump", "name": "jump-after-fix", "sheet": { "against": "jump" } }
 ```
 
-Without `seconds`, the capture runs until 1 s after the last event, to show the reaction to it. The
+Without `duration`, the capture runs until 1 s after the last event, to show the reaction to it. The
 script is copied into the capture folder as `capture.input`, and `summary.json` lists every event by the
 frame it applied on.
 
 ## Recording
 
-```
-MyGame --agenttools-record sessions/boss
+Every time you play, the game records what it read to `.agenttools/sessions/<Game>-<time>/session.input`
+(see [Live play](live.md#sessions)). It's written as you go: a crash keeps it, and even a killed process
+loses at most the last second. The agent replays it by the folder's name:
+
+```json
+{ "input": "MyGame-20261121-093000", "name": "boss-before-fix" }
 ```
 
-Play as usual. `sessions/boss.input` is written as you go (a crash keeps it, and even a killed process
-loses at most the last second). Replay it with `--agenttools-input sessions/boss.input`, or give the
-agent its path. If writing fails partway (a full disk, say), what was written is kept, the game carries
-on, and the session stats' `recording.error` says why.
+From a terminal, pass the file: `--agenttools-input .agenttools/sessions/MyGame-20261121-093000/session.input`.
+If writing fails partway (a full disk, say), what was written is kept, the game carries on, and the
+session summary's `recording.error` says why.
 
 The recording samples once per `Update`, like your game, so it holds exactly what your game read. A
 press and release within one frame is the one thing it misses: `GetState` never showed it.
@@ -91,7 +95,7 @@ Each frame's game time comes from one of three places:
 |---|---|---|
 | `fixed` (default) | your game's `TargetElapsedTime`, or `fps` | Deterministic captures |
 | `real` | measured, as live play gets them | A variable-step game's frame-rate bugs |
-| a `.timing` file | replayed from a recording or a `real` capture | Reproducing those bugs exactly |
+| a `.timing` file | replayed from a session or a `real` capture | Reproducing those bugs exactly |
 
 A capture never reads the clock under `fixed`, even for a game with `IsFixedTimeStep = false`, so it
 sees perfectly even steps. That's what makes captures repeatable, but it hides bugs that need uneven
@@ -101,18 +105,18 @@ capture covers the game time asked for. It keeps them in `capture.timing`, so a 
 be replayed frame for frame:
 
 ```json
-{ "timing": "real", "seconds": 10, "name": "jitter" }
+{ "timing": "real", "duration": "10s", "name": "jitter" }
 { "timing": "jitter", "name": "jitter-replay" }
 ```
 
-Recording a variable-step game also writes `<path>.timing` beside the `.input`; replaying the `.input`
+A session of a variable-step game also has `session.timing` beside its `.input`; replaying the input
 uses it automatically, so your game gets the same input on the same frames with the same elapsed times.
 Pass `timing: "fixed"` to replay just the input at an even step instead: inputs keep their times, but
 the game's state can drift from the session.
 
 A capture keeps the script and timing it played, as read before the game started, in `capture.input`
-and `capture.timing`. Recording during a capture to the same path as the input it replays is refused,
-since it would overwrite that input.
+and `capture.timing`. Through MCP, a capture can't replay the capture its name replaces, since running
+it deletes what it plays: give it another name.
 
 ## Making replays match
 

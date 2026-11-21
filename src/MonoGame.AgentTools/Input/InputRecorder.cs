@@ -17,6 +17,7 @@ namespace MonoGame.AgentTools.Input;
 /// </summary>
 internal sealed class InputRecorder : IDisposable
 {
+    public const string InputExtension = ".input";
     private const int MaxLine = 96;
     private const int TextPerLine = 32;
 
@@ -45,7 +46,7 @@ internal sealed class InputRecorder : IDisposable
     private InputRecorder(Game game, string basePath, string header)
     {
         _game = game;
-        InputPath = basePath + ".input";
+        InputPath = basePath + InputExtension;
         _timingPath = basePath + TimingFile.Extension;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(InputPath))!);
         File.Delete(_timingPath);
@@ -55,6 +56,22 @@ internal sealed class InputRecorder : IDisposable
             _pads[i] = GamePadState.Default;
         _onTextInput = OnTextInput;
         game.Window.TextInput += _onTextInput;
+        WarmFormatting();
+    }
+
+    /// <summary>
+    /// Formats one of each value an event can hold, so the first event of a session doesn't compile the
+    /// generic UTF-8 formatting code mid-frame, which <see cref="Runtime.Precompile"/> can't reach.
+    /// </summary>
+    private static void WarmFormatting()
+    {
+        Span<byte> scratch = stackalloc byte[MaxLine + 2 * InputText.MaxBytesPerChar];
+        Seconds(scratch, TimeSpan.TicksPerSecond + 1);
+        Milliseconds(scratch, TimeSpan.TicksPerMillisecond + 1);
+        Int(new Line(scratch, 0), -1);
+        Float(new Line(scratch, 0), -0.5f);
+        (-1.5).TryFormat(scratch, out _, "+0.###;-0.###", System.Globalization.CultureInfo.InvariantCulture);
+        InputText.Write(scratch, "é\"");
     }
 
     public string InputPath { get; }
@@ -74,7 +91,7 @@ internal sealed class InputRecorder : IDisposable
     /// <summary>Starts recording to <c>&lt;basePath&gt;.input</c> (and <c>.timing</c>); a given extension is dropped.</summary>
     public static InputRecorder Start(Game game, string basePath)
     {
-        if (basePath.EndsWith(".input", StringComparison.OrdinalIgnoreCase) || basePath.EndsWith(TimingFile.Extension, StringComparison.OrdinalIgnoreCase))
+        if (basePath.EndsWith(InputExtension, StringComparison.OrdinalIgnoreCase) || basePath.EndsWith(TimingFile.Extension, StringComparison.OrdinalIgnoreCase))
             basePath = Path.ChangeExtension(basePath, null);
         var header = $"# Input recorded by MonoGame.AgentTools {Report.Version} from {game.GetType().Name}, {DateTime.Now:yyyy-MM-dd HH:mm}\n";
         return new InputRecorder(game, basePath, header);

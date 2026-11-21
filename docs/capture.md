@@ -1,15 +1,19 @@
 # Capture
 
-The MCP `capture` tool builds your game and runs it with `--agenttools-capture`. You can run the same
-thing yourself:
+The MCP `capture` and `profile` tools build your game and run it with `--agenttools-capture` or
+`--agenttools-profile`. These flags are for agents and tools; the same run from a terminal is:
 
 ```
-MyGame --agenttools-capture out/run1 --agenttools-duration 2
+MyGame --agenttools-capture out/run1 --agenttools-duration 2s
 ```
 
 The game initializes without entering MonoGame's run loop, so its window is never shown. Then its real
 `Update` and `Draw` run at a fixed step (your game's `TargetElapsedTime`), each frame is read back from
 the backbuffer before it's presented, and the game exits.
+
+A profile is the same run paced to the step in real time, as your frames are when you play, with no
+frames saved, so its frame times and allocations are the game's own. It runs 8 s by default, since the
+[warm-up gates](performance.md) typically open a few seconds in.
 
 ## Determinism
 
@@ -29,21 +33,27 @@ Pixels can still differ slightly across GPUs and drivers, so compare captures fr
 
 ## Options
 
+A run takes one entry flag, then any options. Without an entry flag the game runs live, and options alone
+are an error.
+
+| Entry | |
+|---|---|
+| `--agenttools-capture <dir>` | Capture, writing to `<dir>` |
+| `--agenttools-profile <dir>` | Profile, writing to `<dir>` |
+
 | Option | Default | |
 |---|---|---|
-| `--agenttools-capture <dir>` | | Capture mode, writing to `<dir>` |
-| `--agenttools-duration <s>` | `1` | Game time to capture; with input, to 1 s after its last event; with replayed timing, its length |
-| `--agenttools-frames <n>` | | Overrides duration |
-| `--agenttools-fps <n>` | the game's step | Fixed steps per second, overriding `TargetElapsedTime` |
-| `--agenttools-size <WxH>` \| `native` | `1280x720` | Same framing on every machine |
-| `--agenttools-save all\|none\|every:N\|1,30,60` | `all` | Which frames to write |
-| `--agenttools-realtime` | off | Pace frames to wall-clock time, as vsync would |
-| `--agenttools-jit-names` | off | Name the methods compiled during each hitch |
+| `--agenttools-duration 3s\|150f` | capture `1s`, profile `8s` | Game seconds or frames, with the unit. With input, at least to 1 s after its last event; with replayed timing, its length |
 | `--agenttools-input <file>` | | An input script to play ([Input and replay](input.md)) |
 | `--agenttools-timing fixed\|real\|<file>` | `fixed` | Frame timing: even steps, measured, or replayed from a `.timing` file (one beside the input is used unless this says otherwise) |
-| `--agenttools-record <path>` | | Record the input the game reads to `<path>.input` (in live play too) |
+| `--agenttools-fps <n>` | the game's step | Fixed steps per second, overriding `TargetElapsedTime` |
+| `--agenttools-size <WxH>` \| `native` | `1280x720` | Same framing on every machine |
+| `--agenttools-save all\|none\|every:N\|1,30,60` | `all` | Which frames to write; capture only |
+| `--agenttools-jit-names` | off | Name the methods compiled during each hitch. It allocates on another thread and slows the frames that compile, so it's off unless a hitch needs explaining |
 
-Any other arguments are left for your game, so its own flags work alongside these.
+Each MCP parameter that reaches the game is the camelCase form of its flag: `duration`, `input`,
+`timing`, `fps`, `size`, `save`, `jitNames`. Any other arguments are left for your game, so its own
+flags work alongside these.
 
 ## Output
 
@@ -55,7 +65,7 @@ Any other arguments are left for your game, so its own flags work alongside thes
 | `capture.input` | The input script played, to replay the capture |
 | `capture.timing` | The frame times, under real or replayed timing |
 | `sheet.png` | 12 evenly spaced frames in a 4-column grid |
-| `error.txt` | Only if the capture failed (exit code 1), or its input or timing was invalid (exit code 2) |
+| `error.txt` | Only if the run failed (exit code 1), or its input or timing was invalid (exit code 2) |
 
 The MCP server adds `sheets/` (labeled contact sheets) and `gifs/` to the same folder.
 
@@ -77,4 +87,4 @@ The MCP server adds `sheets/` (labeled contact sheets) and `gifs/` to the same f
 The capture's own work allocates nothing per frame: frames are read back with a reused buffer, compressed
 by an allocation-free PNG encoder and written with the operating system's file calls. Saving a 1280x720
 frame takes about 3 ms. Saving still adds that time to every frame, which is why performance numbers come
-from runs with `--agenttools-save none --agenttools-realtime`; see [Performance](performance.md).
+from a profile; see [Performance](performance.md).

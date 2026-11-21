@@ -3,8 +3,15 @@ namespace MonoGame.AgentTools;
 /// <summary>Optional settings for <see cref="AgentTools.Attach"/>. Every property has a default.</summary>
 public sealed class AgentToolsOptions
 {
-    /// <summary>Shows the HUD from the start in live play, as <c>--agenttools-hud</c> does. Backtick still toggles it.</summary>
+    /// <summary>Shows the HUD from the start in live play. Backtick still toggles it. Captures and profiles never show it.</summary>
     public bool ShowHud { get; init; }
+
+    /// <summary>
+    /// Records each live session to <c>.agenttools/sessions</c> in the repository: what the game read from
+    /// the keyboard, mouse and gamepads (typed text included), its frame times and its stats, so an agent
+    /// can replay the session. The 10 most recent are kept. Default true; false records nothing.
+    /// </summary>
+    public bool RecordSessions { get; init; } = true;
 
     /// <summary>
     /// Fixed text for whoever runs the game, such as its controls. Shown under the HUD and written to every

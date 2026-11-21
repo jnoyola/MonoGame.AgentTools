@@ -8,6 +8,15 @@
     <DefineConstants Condition="'$(AgentToolsEnabled)' == 'true'">$(DefineConstants);AGENTTOOLS</DefineConstants>
   </PropertyGroup>
 
+  <!--
+    Where live play records sessions (.agenttools/sessions), read with AppContext.GetData: AgentToolsRoot
+    when set, else the .git root above the project, found the same way as for .mcp.json below.
+  -->
+  <ItemGroup Condition="'$(AgentToolsEnabled)' == 'true'">
+    <RuntimeHostConfigurationOption Include="MonoGame.AgentTools.ProjectDirectory" Value="$(MSBuildProjectDirectory)" />
+    <RuntimeHostConfigurationOption Include="MonoGame.AgentTools.Root" Condition="'$(AgentToolsRoot)' != ''" Value="$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(AgentToolsRoot)'))" />
+  </ItemGroup>
+
   <Target Name="AgentToolsExcludeFromOutput" AfterTargets="ResolvePackageAssets" Condition="'$(AgentToolsEnabled)' != 'true'">
     <ItemGroup>
       <RuntimeCopyLocalItems Remove="@(RuntimeCopyLocalItems)" Condition="'%(RuntimeCopyLocalItems.NuGetPackageId)' == 'MonoGame.AgentTools'" />

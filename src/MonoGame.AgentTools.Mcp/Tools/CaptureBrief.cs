@@ -21,12 +21,13 @@ internal static class CaptureBrief
         void Line(FormattableString line) => text.Append(line.ToString(CultureInfo.InvariantCulture)).Append('\n');
 
         var size = root.TryGetProperty("backbuffer", out var b) ? $", {b.GetProperty("width").GetInt32()}x{b.GetProperty("height").GetInt32()}" : "";
-        Line($"{Int(root, "frames")} frames, {Timing(root)}: {Num(root, "simSeconds")} s game time, {Num(root, "wallSeconds")} s wall{size}");
+        var paced = root.TryGetProperty("mode", out var mode) && mode.GetString() == "profile" ? "paced in real time, " : "";
+        Line($"{Int(root, "frames")} frames, {paced}{Timing(root)}: {Num(root, "simSeconds")} s game time, {Num(root, "wallSeconds")} s wall{size}");
         if (root.TryGetProperty("input", out var input))
         {
             var events = input.GetProperty("events").GetInt32();
             var applied = input.GetProperty("applied").GetInt32();
-            Line($"Input: {(applied == events ? $"{events}" : $"{applied} of {events}")} events applied from {input.GetProperty("file").GetString()}");
+            Line($"Input: {(applied == events ? $"{events}" : $"{applied} of {events}")} event{(events == 1 ? "" : "s")} applied from {input.GetProperty("file").GetString()}");
         }
         if (root.TryGetProperty("notes", out var notes))
             Line($"Notes: {string.Join("; ", notes.EnumerateArray().SelectMany(n => n.GetString()!.Split('\n')))}");

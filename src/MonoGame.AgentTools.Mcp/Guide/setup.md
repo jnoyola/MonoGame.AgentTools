@@ -20,8 +20,11 @@ builds Debug unless given `configuration`; another configuration needs
 
 Custom metric functions run once per frame on the game thread and must not allocate.
 
+Live play records each session to `.agenttools/sessions` at the repository root (topic input);
+`RecordSessions = false` in the options turns that off.
+
 A build with the tools enabled adds this server to `.mcp.json` at the repository root (and to `.vscode/mcp.json` and
 `.cursor/mcp.json` where those folders exist), merging into what's there, and updates it when the
 package version changes; commit it so everyone gets it. An entry edited by hand is left alone.
 `<AgentToolsInstallMcp>false</AgentToolsInstallMcp>` turns this off; `<AgentToolsRoot>` picks another
-folder. It's skipped in CI and when the library is referenced as a project rather than a package.
+folder, for sessions too. It's skipped in CI and when the library is referenced as a project rather than a package.

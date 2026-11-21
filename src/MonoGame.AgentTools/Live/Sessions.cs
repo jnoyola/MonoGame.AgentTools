@@ -1,0 +1,133 @@
+using System.Globalization;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using Microsoft.Xna.Framework;
+
+namespace MonoGame.AgentTools.Live;
+
+/// <summary>
+/// Where live play is recorded: one folder per session under <c>.agenttools/sessions</c> in the
+/// repository root, the folder the MCP server works in, so an agent finds the latest session beside its
+/// captures. The most recent <see cref="Kept"/> are kept, the way Unreal keeps recent logs in
+/// <c>Saved/Logs</c> as timestamped backups.
+/// </summary>
+internal static partial class Sessions
+{
+    /// <summary>The runtime setting the build writes when <c>AgentToolsRoot</c> is set.</summary>
+    public const string RootSetting = "MonoGame.AgentTools.Root";
+
+    /// <summary>The runtime setting the build always writes: the game's project folder, where the search for the root starts.</summary>
+    public const string ProjectSetting = "MonoGame.AgentTools.ProjectDirectory";
+
+    public const int Kept = 10;
+    private const string Marker = ".automatic";
+
+    /// <summary>
+    /// Creates this session's folder and prunes the oldest beyond <see cref="Kept"/>. Returns null, after a
+    /// warning, when the folder can't be written: the game still runs, unrecorded.
+    /// </summary>
+    public static string? Create(string game, DateTime now) => Create(FindRoot(), game, now);
+
+    internal static string? Create(string repository, string game, DateTime now)
+    {
+        try
+        {
+            var root = Path.Combine(repository, ".agenttools");
+            var sessions = Path.Combine(root, "sessions");
+            Directory.CreateDirectory(sessions);
+            var ignore = Path.Combine(root, ".gitignore");
+            if (!File.Exists(ignore))
+                File.WriteAllText(ignore, "# Created by MonoGame.AgentTools.\n*\n");
+
+            var name = string.Create(CultureInfo.InvariantCulture, $"{game}-{now:yyyyMMdd-HHmmss}");
+            var folder = Claim(sessions, name);
+            Prune(sessions);
+            return folder;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Warn(e);
+            return null;
+        }
+    }
+
+    public static void Warn(Exception e) => Console.Error.WriteLine($"MonoGame.AgentTools: this session isn't recorded: {e.Message}");
+
+    /// <summary>
+    /// The game's executable name (normally its project's name, which captures are named after too), so
+    /// two games in one repository keep separate sessions even when both keep the template's <c>Game1</c>.
+    /// </summary>
+    public static string GameName(Game game) => Assembly.GetEntryAssembly()?.GetName().Name ?? game.GetType().Name;
+
+    /// <summary>
+    /// The folder is this session's once it creates the marker: creating a file that must not exist is
+    /// atomic, so two games started in the same second get a folder each.
+    /// </summary>
+    private static string Claim(string sessions, string name)
+    {
+        for (int n = 1; ; ++n)
+        {
+            var folder = Path.Combine(sessions, n == 1 ? name : string.Create(CultureInfo.InvariantCulture, $"{name}-{n}"));
+            Directory.CreateDirectory(folder);
+            var marker = Path.Combine(folder, Marker);
+            try
+            {
+                new FileStream(marker, FileMode.CreateNew, FileAccess.Write).Dispose();
+                return folder;
+            }
+            catch (IOException) when (File.Exists(marker))
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// The <c>AgentToolsRoot</c> the game was built with, else the nearest folder holding <c>.git</c> above
+    /// its project (the rule that adds the server to <c>.mcp.json</c>, so sessions land where the server
+    /// looks), else the project folder. A game run without those settings starts from its own folder.
+    /// </summary>
+    public static string FindRoot()
+    {
+        if (AppContext.GetData(RootSetting) is string { Length: > 0 } configured)
+            return configured;
+        var start = AppContext.GetData(ProjectSetting) is string { Length: > 0 } project && Directory.Exists(project)
+            ? project
+            : AppContext.BaseDirectory;
+        for (var directory = new DirectoryInfo(start); directory is not null; directory = directory.Parent)
+        {
+            var git = Path.Combine(directory.FullName, ".git");
+            if (Directory.Exists(git) || File.Exists(git))
+                return directory.FullName;
+        }
+        return start;
+    }
+
+    /// <summary>
+    /// Only folders this class made and named are pruned, so renaming a session keeps it, as naming a
+    /// capture does.
+    /// </summary>
+    private static void Prune(string sessions)
+    {
+        var old = new DirectoryInfo(sessions).EnumerateDirectories()
+            .Where(d => File.Exists(Path.Combine(d.FullName, Marker)) && IsAutomaticName(d.Name))
+            .OrderByDescending(d => d.CreationTimeUtc)
+            .Skip(Kept);
+        foreach (var directory in old)
+        {
+            try
+            {
+                directory.Delete(recursive: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Open elsewhere; pruned next time.
+            }
+        }
+    }
+
+    /// <summary><c>&lt;game&gt;-yyyyMMdd-HHmmss</c>, with <c>-n</c> after it for a second session in the same second.</summary>
+    internal static bool IsAutomaticName(string name) => AutomaticName().IsMatch(name);
+
+    [GeneratedRegex(@"^.+-\d{8}-\d{6}(-\d+)?$")]
+    private static partial Regex AutomaticName();
+}
