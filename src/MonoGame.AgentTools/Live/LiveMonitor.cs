@@ -67,7 +67,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
         {
             var recorder = monitor._recorder = InputRecorder.Start(game, options.RecordPath);
             // Written as it goes; flushed on a crash too, since that recording is the one most worth having.
-            AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.Flush();
+            AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.FlushFinal();
         }
         if (options.StatsPath is not null)
             game.Exiting += (_, _) => monitor.WriteStats(options.StatsPath);
@@ -270,7 +270,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
             CustomMetricValues = metricValues,
             Notes = _notes,
             MemoryHistory = _memoryHistory.Points.ToArray(),
-            Sections = _recorder is null ? new Dictionary<string, object>() : new() { ["recording"] = Capture.CaptureRunner.RecordingSection(_recorder) },
+            Sections = _recorder is null ? new Dictionary<string, object>() : new() { ["recording"] = _recorder.Summary() },
         };
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         Report.WriteSummary(path, info, FrameAnalysis.Run(frames, _warmup));

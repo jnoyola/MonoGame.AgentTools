@@ -685,8 +685,9 @@ f140 PadLeftStick 0.5,-1
   there are some). So a variable-step game normally gets a perfectly even step in a capture, and bugs
   that need uneven frame times (frame-rate-dependent physics, smoothing jitter) only show under `real`
   or a replayed recording. `real` is non-deterministic once and reproducible after: its
-  `capture.timing` replays the run frame for frame. A hidden window isn't synced to a display, so pair
-  `real` with `realtime` for vsync-like times. A fixed-step game asks for even steps, so `real` gives
+  `capture.timing` replays the run frame for frame. A hidden window isn't synced to a display, so `real`
+  paces frames to the step itself, as vsync would: unpaced, frames measured a few milliseconds each
+  and a capture planned for a duration ended far short of it, with later input never applied. A fixed-step game asks for even steps, so `real` gives
   it measured times it wouldn't get live; it's meant for variable-step games. MonoGame's catch-up when
   a fixed-step game falls behind isn't emulated, and `IsRunningSlowly` isn't reproduced.
 - **`.timing` format:** a 16-byte header (`MGAT`, format version, first frame, reserved), then each

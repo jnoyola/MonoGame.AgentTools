@@ -61,6 +61,9 @@ internal sealed class InputRecorder : IDisposable
     public int BufferSwaps => _input.Swaps + (_timing?.Swaps ?? 0);
     public int ExtraBuffers => _input.ExtraBuffers + (_timing?.ExtraBuffers ?? 0);
 
+    /// <summary>The write that stopped the recording (disk full, say), or null; what came before is kept.</summary>
+    public Exception? Error => _input.Error ?? _timing?.Error;
+
     /// <summary>Starts recording to <c>&lt;basePath&gt;.input</c> (and <c>.timing</c>); a given extension is dropped.</summary>
     public static InputRecorder Start(Game game, string basePath)
     {
@@ -142,11 +145,33 @@ internal sealed class InputRecorder : IDisposable
         _timing?.Tick();
     }
 
-    /// <summary>Writes everything recorded so far; safe from another thread, such as on an unhandled exception.</summary>
-    public void Flush()
+    /// <summary>
+    /// Writes every whole event recorded so far and stops recording; safe from any thread, for an
+    /// unhandled exception.
+    /// </summary>
+    public void FlushFinal()
     {
-        _input.Flush();
-        _timing?.Flush();
+        _input.FlushFinal();
+        _timing?.FlushFinal();
+    }
+
+    /// <summary>The <c>recording</c> section of <c>summary.json</c>.</summary>
+    public Dictionary<string, object> Summary()
+    {
+        var section = new Dictionary<string, object>
+        {
+            ["input"] = InputPath,
+            ["frames"] = Frames,
+            ["events"] = Events,
+            ["peakEventsPerSecond"] = PeakEventsPerSecond,
+            ["bufferSwaps"] = BufferSwaps,
+            ["extraBuffers"] = ExtraBuffers,
+        };
+        if (TimingPath is { } timing)
+            section["timing"] = timing;
+        if (Error is { } error)
+            section["error"] = $"Recording stopped early: {error.Message}";
+        return section;
     }
 
     public void Dispose()

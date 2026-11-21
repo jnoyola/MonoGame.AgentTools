@@ -89,11 +89,42 @@ public class InputTests
     [InlineData("f60 PadLeftTrigger 1.5", "values are from 0 to 1")]
     [InlineData("f60 Space down\nstep 16", "line 2: the step header goes before the events")]
     [InlineData("step 0", "isn't a step in milliseconds")]
+    [InlineData("f5 down", "'f5' is read as frame 5; the key is F5.")]
     public void Errors_name_the_line_and_suggest_a_fix(string text, string message)
     {
         var error = Assert.Throws<FormatException>(() => InputScript.Parse(text, "s.input"));
         Assert.Contains(message, error.Message, StringComparison.Ordinal);
         Assert.StartsWith("s.input line ", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_lowercase_function_key_after_a_time_is_the_key()
+    {
+        var e = Assert.Single(InputScript.Parse("t1.5 f5 down", "s.input").Events);
+
+        Assert.Equal(new InputControl(ControlKind.Key, (int)Keys.F5), e.Control);
+        Assert.Equal(0, e.Frame);
+    }
+
+    [Fact]
+    public void Recording_over_the_input_being_replayed_is_refused()
+    {
+        var folder = Directory.CreateTempSubdirectory("agenttools-collision").FullName;
+        try
+        {
+            var input = Path.Combine(folder, "boss.input");
+            File.WriteAllText(input, "f1 Space down\n");
+            var options = CommandLineOptions.Parse(["--agenttools-capture", folder, "--agenttools-input", input, "--agenttools-record", Path.Combine(folder, "boss")]);
+
+            var error = Assert.Throws<ArgumentException>(() => CaptureRunner.CaptureInputs.Load(options));
+
+            Assert.Contains("would overwrite", error.Message, StringComparison.Ordinal);
+            Assert.Equal("f1 Space down\n", File.ReadAllText(input));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
     }
 
     [Fact]

@@ -59,15 +59,6 @@ internal sealed class InputPlayback
         return new InputPlayback(resolved, [], warnings);
     }
 
-    /// <summary>The last frame an event applies on, if frame times are known; otherwise estimated at the clock's step.</summary>
-    public int LastFrame(FrameClock clock)
-    {
-        var last = _byFrame.Length > 0 ? _byFrame[^1].Frame : 0;
-        if (_byTime.Length > 0)
-            last = Math.Max(last, (int)Math.Min(int.MaxValue, (_byTime[^1].Ticks + clock.StepTicks - 1) / clock.StepTicks));
-        return last;
-    }
-
     /// <summary>Applies every event due on <paramref name="frame"/>, whose total game time is <paramref name="totalTicks"/>.</summary>
     public void Apply(int frame, long totalTicks, IInputSink sink)
     {

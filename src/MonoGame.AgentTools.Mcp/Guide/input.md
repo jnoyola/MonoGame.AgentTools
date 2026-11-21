@@ -29,8 +29,8 @@ A press needs at least one frame down: a down and up on the same frame is never 
 applied on each frame; the brief says how many events applied.
 
 Timing (`timing`): `fixed` (default, the game's own step; repeatable), `real` (measured frame times,
-kept as capture.timing; use with `realtime` to look for frame-rate-dependent bugs in a variable-step
-game), or a capture's name or `.timing` file to replay its frame times exactly. A replayed input's own
+paced to the step like vsync and kept as capture.timing; for frame-rate-dependent bugs in a
+variable-step game), or a capture's name or `.timing` file to replay its frame times exactly. A replayed input's own
 timing comes with it unless `timing` says otherwise.
 
 Recordings: the user runs the game with `--agenttools-record <path>` and plays; `<path>.input` (and

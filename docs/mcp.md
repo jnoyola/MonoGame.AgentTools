@@ -105,10 +105,9 @@ Examples:
 { "seconds": 8, "save": "none", "realtime": true }
 { "seconds": 2, "gameArgs": ["--level", "3"], "name": "before" }
 { "seconds": 2, "name": "after", "sheet": { "against": "before" } }
-{ "input": "f30 Space down
-f45 Space up", "name": "jump" }
+{ "input": "f30 Space down\nf45 Space up", "name": "jump" }
 { "input": "jump", "name": "jump-fixed", "sheet": { "against": "jump" } }
-{ "timing": "real", "realtime": true, "seconds": 10, "name": "jitter" }
+{ "timing": "real", "seconds": 10, "name": "jitter" }
 ```
 
 ### contact_sheet
