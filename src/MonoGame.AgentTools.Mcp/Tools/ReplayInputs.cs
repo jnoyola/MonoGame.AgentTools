@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MonoGame.AgentTools.Mcp.Games;
 
 namespace MonoGame.AgentTools.Mcp.Tools;
 
@@ -10,7 +11,7 @@ namespace MonoGame.AgentTools.Mcp.Tools;
 internal sealed partial record ReplayInputs(string? Script, string? InputPath, string? Timing)
 {
     /// <summary>The input file a capture folder keeps, and the one an inline script is written to.</summary>
-    public const string CaptureInput = "capture.input";
+    public const string CaptureInput = RunFolder.CaptureRecording + RunFolder.InputExtension;
 
     public static ReplayInputs Resolve(Workspace workspace, string? input, string? timing)
     {
@@ -49,10 +50,13 @@ internal sealed partial record ReplayInputs(string? Script, string? InputPath, s
     /// </summary>
     public void CheckNotIn(string output, string name)
     {
-        foreach (var source in new[] { InputPath, Timing })
-            if (source is not null && Path.IsPathRooted(source) && IsUnder(source, output))
-                throw new ToolException($"'{name}' is the capture being replayed, and running it again replaces it; give this run another name.");
+        if (Sources.Any(source => Workspace.IsWithin(source, output)))
+            throw new ToolException($"'{name}' is the capture being replayed, and running it again replaces it; give this run another name.");
     }
+
+    /// <summary>The files this replays, which must outlive the pruning a new run does.</summary>
+    public IEnumerable<string> Sources =>
+        new[] { InputPath, Timing }.OfType<string>().Where(Path.IsPathRooted);
 
     /// <summary>The game's arguments; an inline script is first written into the run's folder, where the game keeps its input anyway.</summary>
     public IEnumerable<string> Arguments(string output)
@@ -64,15 +68,13 @@ internal sealed partial record ReplayInputs(string? Script, string? InputPath, s
             input = Path.Combine(output, CaptureInput);
             File.WriteAllText(input, Script);
         }
+        // The tools' parameter names, so these are the flags the tools are checked against.
         if (input is not null)
-            arguments.AddRange(["--agenttools-input", input]);
+            arguments.AddRange([CommandLine.Flag("input"), input]);
         if (Timing is not null)
-            arguments.AddRange(["--agenttools-timing", Timing]);
+            arguments.AddRange([CommandLine.Flag("timing"), Timing]);
         return arguments;
     }
-
-    private static bool IsUnder(string path, string folder) =>
-        Path.GetFullPath(path).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder)) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>A one-line script: a comment, a step header, or an event starting with f&lt;n&gt; or t&lt;s&gt; and a space (not a file named f60.input).</summary>
     [GeneratedRegex(@"^\s*(#|step\s|[ft][\d.]+\s)")]

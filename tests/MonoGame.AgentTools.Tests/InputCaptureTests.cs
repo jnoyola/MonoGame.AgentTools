@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MonoGame.AgentTools.Tests;
 
@@ -123,9 +124,12 @@ public sealed class InputCaptureTests : IDisposable
     public void Live_play_records_each_session_under_the_repository_root()
     {
         SkipWithoutDesktop();
-        // A copy of the probe in a repository of its own, so its sessions don't land in this one.
+        // A copy of the probe whose project is in a repository of its own, so its sessions don't land in
+        // this one, built to a folder outside it (a shared output path, say): the root is found from the
+        // project, as for .mcp.json, not from the binaries.
         var repository = Path.Combine(_folder, "repository");
-        var bin = Path.Combine(repository, "bin");
+        var project = Path.Combine(repository, "game");
+        var bin = Path.Combine(_folder, "bin");
         foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(Probe)!, "*", SearchOption.AllDirectories))
         {
             var copy = Path.Combine(bin, Path.GetRelativePath(Path.GetDirectoryName(Probe)!, file));
@@ -133,11 +137,17 @@ public sealed class InputCaptureTests : IDisposable
             File.Copy(file, copy);
         }
         Directory.CreateDirectory(Path.Combine(repository, ".git"));
+        Directory.CreateDirectory(project);
+        var config = Path.Combine(bin, "InputProbe.runtimeconfig.json");
+        var options = JsonNode.Parse(File.ReadAllText(config))!["runtimeOptions"]!["configProperties"]!;
+        Assert.NotNull(options["MonoGame.AgentTools.ProjectDirectory"]);
+        options["MonoGame.AgentTools.ProjectDirectory"] = project;
+        File.WriteAllText(config, options.Root.ToJsonString());
 
         Run(Path.Combine(bin, Path.GetFileName(Probe)), "--exit-after", "1");
 
         var session = Assert.Single(Directory.GetDirectories(Path.Combine(repository, ".agenttools", "sessions")));
-        Assert.Matches(@"ProbeGame-\d{8}-\d{6}$", session);
+        Assert.Matches(@"InputProbe-\d{8}-\d{6}$", session);
         Assert.StartsWith("# Input recorded", File.ReadAllText(Path.Combine(session, "session.input")), StringComparison.Ordinal);
         var summary = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(session, "summary.json")));
         Assert.Equal("live", summary.GetProperty("mode").GetString());

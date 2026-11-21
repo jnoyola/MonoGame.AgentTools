@@ -118,4 +118,24 @@ public class OptionsTests
     [InlineData("-20261121-093000", false)]
     public void Only_sessions_named_automatically_are_pruned(string name, bool automatic) =>
         Assert.Equal(automatic, Sessions.IsAutomaticName(name));
+
+    [Fact]
+    public void Sessions_started_in_the_same_second_get_a_folder_each()
+    {
+        var repository = Directory.CreateTempSubdirectory("agenttools-sessions-").FullName;
+        try
+        {
+            var now = new DateTime(2026, 11, 21, 9, 30, 0);
+            var folders = Enumerable.Range(0, 8).AsParallel().Select(_ => Sessions.Create(repository, "MyGame", now)).ToArray();
+
+            Assert.All(folders, Assert.NotNull);
+            Assert.Equal(folders.Length, folders.Distinct().Count());
+            Assert.Contains(folders, f => Path.GetFileName(f) == "MyGame-20261121-093000");
+            Assert.Contains(folders, f => Path.GetFileName(f) == "MyGame-20261121-093000-8");
+        }
+        finally
+        {
+            Directory.Delete(repository, recursive: true);
+        }
+    }
 }

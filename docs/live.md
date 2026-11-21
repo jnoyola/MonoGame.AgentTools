@@ -35,6 +35,9 @@ root of your repository, beside the agent's captures:
 .agenttools/sessions/MyGame-20261121-093000/
 ```
 
+The folder is named after the game's executable (normally its project, as captures are) and the time it
+started. Two games started in the same second get a folder each.
+
 | File | Contents |
 |---|---|
 | `session.input` | What the game read from the keyboard, mouse and gamepads, and what you typed, frame by frame |
@@ -54,8 +57,9 @@ folder to keep it. Recording allocates nothing per frame.
 judges private bytes too, so steady native growth shows up. Steady growth means something is created
 repeatedly and kept, or never disposed.
 
-The folder is the nearest one above the game's output that holds `.git`, the same root the build adds
-`.mcp.json` to, or `AgentToolsRoot` if the project sets it. `.agenttools` gets its own `.gitignore`, so
+The folder is the nearest one above the game's project that holds `.git`, the same root the build adds
+`.mcp.json` to, or `AgentToolsRoot` if the project sets it. The build passes the project's folder to the
+game, so this holds wherever the game is built to. `.agenttools` gets its own `.gitignore`, so
 sessions are never committed. To record nothing:
 
 ```csharp

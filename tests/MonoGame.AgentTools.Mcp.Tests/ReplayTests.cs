@@ -65,6 +65,25 @@ public sealed class ReplayTests : IDisposable
         Assert.Contains("give this run another name", error.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Replaying_the_oldest_unnamed_capture_keeps_it_through_pruning()
+    {
+        var start = DateTime.UtcNow.AddHours(-1);
+        for (var i = 0; i < Workspace.KeptAutomaticCaptures; i++)
+        {
+            var folder = _workspace.PrepareCapture($"game-{i:00}", "capture");
+            File.WriteAllText(Path.Combine(folder, "capture.input"), "f1 A down");
+            Directory.SetCreationTimeUtc(folder, start.AddMinutes(i));
+        }
+        var replay = ReplayInputs.Resolve(_workspace, "game-00", null);
+
+        _workspace.PrepareCapture("game-new", "capture", replay.Sources);
+        _workspace.PrepareCapture("game-newer", "capture", replay.Sources);
+
+        Assert.True(File.Exists(replay.InputPath));
+        Assert.False(Directory.Exists(Path.Combine(_workspace.CapturesDirectory, "game-01")));
+    }
+
     [Theory]
     [InlineData("nonexistent", null, "isn't a script")]
     [InlineData(null, "nonexistent", "timing must be 'fixed', 'real'")]

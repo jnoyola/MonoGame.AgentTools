@@ -29,13 +29,18 @@ internal sealed class GameTools(Workspace workspace)
     private const string SizeDescription = "Backbuffer size 'WIDTHxHEIGHT', or 'native' for the game's own. Default 1280x720, the same on every machine.";
     private const string JitNamesDescription = "Name the methods JIT-compiled during each hitch. Off by default: naming them allocates about 1 MB a run on another thread and slows the frames that compile.";
     private const string GameArgsDescription = "Extra arguments for the game itself, such as its own scenario or camera flags.";
-    private const string NameDescription = "Output folder name under .agenttools/captures; a run of the same name is replaced. Named runs are kept until deleted, for comparing before and after a change. Unnamed ones ('<project>-<timestamp>') are pruned to the 10 most recent.";
+    private const string NameDescription = "Output folder name under .agenttools/captures; a run of the same name is replaced. Named runs are kept until deleted, for comparing before and after a change. Unnamed ones ('<project>-<timestamp>') are pruned to the 10 most recent of each tool.";
     private const string DetailDescription = "'brief' (default): one plain-text line per check, enough to judge the run. 'full': summary.json as written, with every field, hitch causes and JIT method names. Both are saved in the run's folder either way.";
     private const string ConfigurationDescription = "Build configuration. Default Debug, where the tools are on; another configuration needs <AgentToolsEnabled>true</AgentToolsEnabled> in the game's project.";
     private const string FrameworkDescription = "Target framework to build and run, such as 'net8.0', for a game that targets several. Default: the first in its TargetFrameworks.";
     private const string TimeoutDescription = "Give up and kill the game after this many seconds. Default 300.";
 
-    private enum RunKind { Capture, Profile }
+    /// <summary>What differs between the two runs: the game's entry flag, and how results name them.</summary>
+    private sealed record RunKind(string Entry, string Doing, string Done, string NameSuffix)
+    {
+        public static readonly RunKind Capture = new("capture", "Capturing", "Captured", "");
+        public static readonly RunKind Profile = new("profile", "Profiling", "Profiled", "-profile");
+    }
 
     [McpServerTool(Name = "list_games", ReadOnly = true, Idempotent = true, OpenWorld = false)]
     [Description("Lists the executable projects in the workspace that reference MonoGame.AgentTools; capture and profile run one of them.")]
@@ -117,9 +122,8 @@ internal sealed class GameTools(Workspace workspace)
         string configuration, string? framework, int timeoutSeconds, IProgress<ProgressNotificationValue>? progress, CancellationToken cancellationToken)
     {
         var game = GameProject.Resolve(workspace.Root, project);
-        var verb = kind == RunKind.Capture ? "Capturing" : "Profiling";
         var automaticName = name is null;
-        name ??= string.Create(CultureInfo.InvariantCulture, $"{game.Name}{(kind == RunKind.Profile ? "-profile" : "")}-{DateTime.Now:yyyyMMdd-HHmmss}");
+        name ??= string.Create(CultureInfo.InvariantCulture, $"{game.Name}{kind.NameSuffix}-{DateTime.Now:yyyyMMdd-HHmmss}");
         if (!Workspace.IsPlainName(name))
             throw new ToolException($"name must be a plain folder name, got '{name}'.");
         var full = detail switch
@@ -140,8 +144,9 @@ internal sealed class GameTools(Workspace workspace)
         progress?.Report(new ProgressNotificationValue { Progress = 0, Total = 2, Message = $"Building {built}, {configuration}" });
         var run = await game.BuildAsync(configuration, framework, cancellationToken).ConfigureAwait(false);
 
-        var output = workspace.PrepareCapture(name, automaticName, keep: baseline);
-        var arguments = new List<string> { CommandLine.Prefix + (kind == RunKind.Capture ? "capture" : "profile"), output };
+        // What this run reads survives the pruning that makes room for it.
+        var output = workspace.PrepareCapture(name, automaticName ? kind.Entry : null, baseline is null ? replay.Sources : replay.Sources.Append(baseline));
+        var arguments = new List<string> { CommandLine.Prefix + kind.Entry, output };
         void Option(string parameter, object? value)
         {
             if (value is not null)
@@ -156,7 +161,7 @@ internal sealed class GameTools(Workspace workspace)
         arguments.AddRange(replay.Arguments(output));
         arguments.AddRange(gameArgs ?? []);
 
-        progress?.Report(new ProgressNotificationValue { Progress = 1, Total = 2, Message = $"{verb} {built}" });
+        progress?.Report(new ProgressNotificationValue { Progress = 1, Total = 2, Message = $"{kind.Doing} {built}" });
         var commandLine = string.Join(' ', new[] { run.Arguments, CommandLine.Join(arguments) }.Where(a => a.Length > 0));
         var result = await ProcessRunner.RunAsync(run.FileName, commandLine, run.WorkingDirectory,
             TimeSpan.FromSeconds(Math.Max(1, timeoutSeconds)), cancellationToken).ConfigureAwait(false);
@@ -166,7 +171,7 @@ internal sealed class GameTools(Workspace workspace)
             return Failure(game, kind, output, result, timeoutSeconds);
 
         var summary = await File.ReadAllTextAsync(summaryPath, cancellationToken).ConfigureAwait(false);
-        var text = new StringBuilder().Append(CultureInfo.InvariantCulture, $"{(kind == RunKind.Capture ? "Captured" : "Profiled")} {built} to {workspace.Display(output)}\n");
+        var text = new StringBuilder().Append(CultureInfo.InvariantCulture, $"{kind.Done} {built} to {workspace.Display(output)}\n");
         ContentBlock image;
         if (SheetTools.SavedFrames(Path.Combine(output, "frames"), fps: 60).Count > 0)
         {
@@ -206,7 +211,6 @@ internal sealed class GameTools(Workspace workspace)
     private static CallToolResult Failure(GameProject game, RunKind kind, string output, ProcessResult result, int timeoutSeconds)
     {
         var text = new StringBuilder();
-        var run = kind == RunKind.Capture ? "Capture" : "Profile";
         // The game's own words for a bad option, with each flag named as the parameter it came from.
         var rejected = result.ExitCode == InvalidArgumentsExitCode
             ? result.Output.Split('\n').Where(l => l.StartsWith(LibraryPrefix, StringComparison.Ordinal))
@@ -218,10 +222,10 @@ internal sealed class GameTools(Workspace workspace)
             return new CallToolResult
             {
                 IsError = true,
-                Content = [new TextContentBlock { Text = $"{game.Name} rejected the {run.ToLowerInvariant()} options: {string.Join(" ", rejected)}" }],
+                Content = [new TextContentBlock { Text = $"{game.Name} rejected the {kind.Entry} options: {string.Join(" ", rejected)}" }],
             };
         else
-            text.Append(CultureInfo.InvariantCulture, $"{run} of {game.Name} failed (exit code {result.ExitCode}).\n");
+            text.Append(CultureInfo.InvariantCulture, $"The {kind.Entry} of {game.Name} failed (exit code {result.ExitCode}).\n");
 
         var error = Path.Combine(output, "error.txt");
         if (File.Exists(error))

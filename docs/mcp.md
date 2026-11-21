@@ -59,7 +59,7 @@ which clients that start servers without a shell can't run.
 | [`guide`](#guide) | Setup, options and how to read the measurements, in depth |
 
 Captures and profiles are written to `.agenttools/captures/<name>` in the workspace, a folder that
-ignores itself in git. Unnamed ones are pruned to the 10 most recent; named ones are kept, for comparing
+ignores itself in git. Unnamed ones are pruned to the 10 most recent of each; named ones are kept, for comparing
 before and after a change. Live play records sessions beside them, in `.agenttools/sessions`
 ([Live play](live.md#sessions)).
 

@@ -306,8 +306,10 @@ internal static class CaptureRunner
         }
     }
 
-    private const string InputFile = "capture.input";
-    private const string TimingFileName = "capture" + TimingFile.Extension;
+    /// <summary>The base name of the input and timing a capture keeps: <c>capture.input</c> and <c>capture.timing</c>.</summary>
+    internal const string Recording = "capture";
+    private const string InputFile = Recording + InputRecorder.InputExtension;
+    private const string TimingFileName = Recording + TimingFile.Extension;
 
     /// <summary>The timing used, kept in the capture folder (when it isn't an even step) so the capture can be replayed.</summary>
     private static Dictionary<string, object> TimingSection(FrameClock clock, string outDir, string? timingPath)

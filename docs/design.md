@@ -815,13 +815,19 @@ The options grew one flag at a time, and two runs needed several flags together:
   allocations 12 KB without it and 1.45 MB with it, and the frames that compiled 0.45 ms against 0.58 ms.
   It costs most on exactly the frames it explains, so it isn't folded into `profile`.
 - **Every live session is recorded** to `.agenttools/sessions/<Game>-<yyyyMMdd-HHmmss>/` under the
-  repository root (the `.git` folder above the game's output, or `AgentToolsRoot` through a runtime
-  setting), beside the captures the MCP server writes, so a bug the user just hit can be replayed without
+  repository root, beside the captures the MCP server writes, so a bug the user just hit can be replayed without
   having planned to record it. Precedent for always-on, keep-recent recording: Unreal keeps recent logs
   as timestamped backups in `Saved/Logs`, and console background recording (Xbox Game Bar, NVIDIA
   Instant Replay) keeps the last minutes so a moment can be saved after it happens. The 10 most recent
-  are kept (as unnamed captures are); a renamed folder is kept for good. `RecordSessions = false` turns
-  it off. `--agenttools-record` and `--agenttools-stats` are gone: the session folder holds both.
+  are kept (as are the 10 most recent unnamed captures and, separately, profiles); a renamed folder is
+  kept for good. `RecordSessions = false` turns it off. `--agenttools-record` and `--agenttools-stats`
+  are gone: the session folder holds both.
+- **Sessions find the root the way `.mcp.json` does**: the build passes the game its project folder
+  (or `AgentToolsRoot`) as a runtime setting, and the game walks up from there to `.git`. Walking up
+  from the binaries instead would put sessions where the server can't see them whenever the output is
+  outside the repository. A session is named after the executable, as captures are after the project,
+  since templates all call the class `Game1`, and claims its folder by creating a marker that must not
+  exist, so two games started in the same second can't share one.
 - **Precompiling runs static constructors** too. Recording inside a measured `Update` (the replay test's
   probe) showed 33 KB on the frame of the first key press: the recorder's name tables, built lazily on
   first use. The recorder also formats one value of each kind when it starts, for the generic UTF-8

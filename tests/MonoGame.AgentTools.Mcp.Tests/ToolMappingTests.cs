@@ -30,6 +30,16 @@ public class ToolMappingTests
     public void Entry_flags_are_the_tool_names() =>
         Assert.Equal(["capture", "profile"], CommandLineOptions.Entries);
 
+    /// <summary>The server finds the files a capture or session keeps by the names the game writes them under.</summary>
+    [Fact]
+    public void Recorded_file_names_match_the_library()
+    {
+        Assert.Equal(Library::MonoGame.AgentTools.Capture.CaptureRunner.Recording, RunFolder.CaptureRecording);
+        Assert.Equal(Library::MonoGame.AgentTools.Live.LiveMonitor.SessionInput, RunFolder.SessionRecording);
+        Assert.Equal(Library::MonoGame.AgentTools.Input.InputRecorder.InputExtension, RunFolder.InputExtension);
+        Assert.Equal(Library::MonoGame.AgentTools.Timing.TimingFile.Extension, RunFolder.TimingExtension);
+    }
+
     [Fact]
     public void Flags_and_parameters_convert_both_ways()
     {

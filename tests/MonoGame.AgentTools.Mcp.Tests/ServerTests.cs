@@ -70,10 +70,24 @@ public class ServerTests
     [Theory]
     [InlineData("")]
     [InlineData("Game.cs(1,1): warning CS0169: The field 'x' is never used")]
+    [InlineData("Game.cs(1,1): warning CS8618: Non-nullable field '{x}' must contain a value")]
     public void Build_output_without_properties_is_a_clear_error(string output)
     {
-        var error = Assert.Throws<ToolException>(() => GameProject.ParseRunCommand(output));
-        Assert.Equal("The build didn't report the game's output path.", error.Message);
+        var run = Assert.Throws<ToolException>(() => GameProject.ParseRunCommand(output));
+        var frameworks = Assert.Throws<ToolException>(() => GameProject.ChooseFramework(output, null));
+        Assert.StartsWith("MSBuild didn't report the game's output path:", run.Message, StringComparison.Ordinal);
+        Assert.StartsWith("MSBuild didn't report target frameworks:", frameworks.Message, StringComparison.Ordinal);
+        Assert.EndsWith(output, run.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Properties_are_found_after_warnings_that_contain_braces()
+    {
+        var output = """
+            Directory.Build.props(3,5): warning MSB4011: "{x}" cannot be imported again.
+            { "Properties": { "TargetFramework": "", "TargetFrameworks": "net8.0;net11.0" } }
+            """;
+        Assert.Equal("net8.0", GameProject.ChooseFramework(output, null));
     }
 
     [Theory]
@@ -136,7 +150,7 @@ public class ServerTests
             var workspace = new Workspace(root);
             string Capture(string name, Action<int, RgbImage> draw, params int[] frames)
             {
-                var folder = workspace.PrepareCapture(name, automatic: false);
+                var folder = workspace.PrepareCapture(name);
                 File.WriteAllText(Path.Combine(folder, "summary.json"), """{ "fps": 60 }""");
                 Directory.CreateDirectory(Path.Combine(folder, "frames"));
                 foreach (var f in frames)
@@ -235,19 +249,19 @@ public class WorkspaceTests
         try
         {
             var workspace = new Workspace(root);
-            workspace.PrepareCapture("baseline", automatic: false);
+            workspace.PrepareCapture("baseline");
             var start = DateTime.UtcNow.AddHours(-1);
             for (var i = 0; i < Workspace.KeptAutomaticCaptures + 2; i++)
             {
-                var folder = workspace.PrepareCapture($"game-{i:00}", automatic: true);
+                var folder = workspace.PrepareCapture($"game-{i:00}", "capture");
                 Directory.SetCreationTimeUtc(folder, start.AddMinutes(i));
             }
 
             var oldest = Path.Combine(workspace.CapturesDirectory, "game-02"); // the oldest left
-            workspace.PrepareCapture("game-keep-check", automatic: true, keep: oldest);
+            workspace.PrepareCapture("game-keep-check", "capture", [oldest]);
             Assert.True(Directory.Exists(oldest)); // a comparison baseline survives pruning
 
-            workspace.PrepareCapture("game-latest", automatic: true);
+            workspace.PrepareCapture("game-latest", "capture");
 
             var left = Directory.GetDirectories(workspace.CapturesDirectory).Select(Path.GetFileName).Order().ToList();
             Assert.Contains("baseline", left);
@@ -257,6 +271,35 @@ public class WorkspaceTests
             Assert.DoesNotContain("game-03", left);
             Assert.Equal(Workspace.KeptAutomaticCaptures + 1, left.Count); // ten unnamed and "baseline"
             Assert.Equal("*", File.ReadAllLines(Path.Combine(root, ".agenttools", ".gitignore"))[^1]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Unnamed_profiles_and_captures_are_pruned_separately()
+    {
+        var root = Directory.CreateTempSubdirectory("agenttools-workspace-").FullName;
+        try
+        {
+            var workspace = new Workspace(root);
+            var start = DateTime.UtcNow.AddHours(-1);
+            var legacy = workspace.PrepareCapture("game-legacy", "capture");
+            File.WriteAllText(Path.Combine(legacy, ".automatic"), ""); // marked before there were pools
+            Directory.SetCreationTimeUtc(legacy, start);
+            for (var i = 0; i < Workspace.KeptAutomaticCaptures - 1; i++)
+                Directory.SetCreationTimeUtc(workspace.PrepareCapture($"game-{i:00}", "capture"), start.AddMinutes(1 + i));
+            for (var i = 0; i < Workspace.KeptAutomaticCaptures + 3; i++)
+                Directory.SetCreationTimeUtc(workspace.PrepareCapture($"game-profile-{i:00}", "profile"), start.AddMinutes(20 + i));
+
+            var left = Directory.GetDirectories(workspace.CapturesDirectory).Select(Path.GetFileName).ToList();
+            Assert.Contains("game-legacy", left);
+            Assert.Equal(Workspace.KeptAutomaticCaptures, left.Count(n => n!.StartsWith("game-profile-", StringComparison.Ordinal)));
+
+            workspace.PrepareCapture("game-new", "capture");
+            Assert.False(Directory.Exists(legacy)); // an empty marker is in the capture pool
         }
         finally
         {

@@ -65,15 +65,32 @@ internal sealed class LiveMonitor : DrawableGameComponent
         var monitor = new LiveMonitor(game, setup);
         game.Components.Add(monitor);
         monitor.StartWatchdog(GameHooks.Bind(game));
-        if (!setup.RecordSessions || Sessions.Create(game.GetType().Name, DateTime.Now) is not { } folder)
+        if (!setup.RecordSessions || Sessions.Create(Sessions.GameName(game), DateTime.Now) is not { } folder)
             return;
-        var recorder = monitor._recorder = InputRecorder.Start(game, Path.Combine(folder, SessionInput));
+        InputRecorder recorder;
+        try
+        {
+            recorder = monitor._recorder = InputRecorder.Start(game, Path.Combine(folder, SessionInput));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Sessions.Warn(e);
+            return;
+        }
         // Written as it goes; flushed on a crash too, since that recording is the one most worth having.
         AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.FlushFinal();
         game.Exiting += (_, _) =>
         {
             recorder.Dispose();
-            monitor.WriteSession(folder);
+            try
+            {
+                monitor.WriteSession(folder);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Quitting must not crash; the recording is already on disk.
+                Console.Error.WriteLine($"MonoGame.AgentTools: this session's stats weren't saved: {e.Message}");
+            }
         };
     }
 

@@ -62,12 +62,13 @@ internal sealed partial class GameProject
     /// if it's one of them, else the first listed, as Visual Studio's debug target defaults to. Null for a
     /// project with one framework. Found by evaluating the project, which sees frameworks set in imported
     /// files such as Directory.Build.props, and builds nothing. Skipped (it takes about a second) when the
-    /// project file names one framework itself and none was asked for.
+    /// project file names one framework itself and none was asked for, or that one was.
     /// </summary>
     public async Task<string?> ChooseFrameworkAsync(string configuration, string? framework, CancellationToken cancellationToken)
     {
         var project = await File.ReadAllTextAsync(Path, cancellationToken).ConfigureAwait(false);
-        if (framework is null && OneFramework().IsMatch(project) && !Frameworks().IsMatch(project))
+        if (OneFramework().Match(project) is { Success: true } one && !Frameworks().IsMatch(project)
+            && (framework is null || framework.Equals(one.Groups[1].Value, StringComparison.OrdinalIgnoreCase)))
             return null;
         string[] args = ["msbuild", Path, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetFramework", "-getProperty:TargetFrameworks"];
         var result = await ProcessRunner.RunAsync("dotnet", args, workingDirectory: null, TimeSpan.FromMinutes(2), cancellationToken).ConfigureAwait(false);
@@ -78,12 +79,13 @@ internal sealed partial class GameProject
 
     internal static string? ChooseFramework(string evaluationOutput, string? framework)
     {
-        using var json = JsonDocument.Parse(evaluationOutput[evaluationOutput.IndexOf('{', StringComparison.Ordinal)..]);
-        var properties = json.RootElement.GetProperty("Properties");
-        var single = properties.GetProperty("TargetFramework").GetString() ?? "";
+        var properties = Properties(evaluationOutput, "target frameworks");
+        var single = Get(properties, "TargetFramework");
         var frameworks = single.Length > 0
             ? [single]
-            : (properties.GetProperty("TargetFrameworks").GetString() ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            : Get(properties, "TargetFrameworks").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (frameworks.Length == 0)
+            throw new ToolException("MSBuild reported no target framework for the project.");
         if (framework is not null && !frameworks.Contains(framework, StringComparer.OrdinalIgnoreCase))
             throw new ToolException($"framework '{framework}' isn't one the project targets: {string.Join(", ", frameworks)}.");
         if (single.Length > 0)
@@ -131,27 +133,44 @@ internal sealed partial class GameProject
 
     internal static RunCommand ParseRunCommand(string buildOutput)
     {
-        // With -getProperty, MSBuild prints a JSON object after any warnings.
-        var start = buildOutput.StartsWith('{') ? 0 : buildOutput.IndexOf("\n{", StringComparison.Ordinal);
-        if (start > 0)
-            ++start;
-        if (start < 0)
-            throw new ToolException("The build didn't report the game's output path.");
-
-        using var json = JsonDocument.Parse(buildOutput[start..]);
-        var properties = json.RootElement.GetProperty("Properties");
-        string Get(string name) => properties.TryGetProperty(name, out var v) ? v.GetString() ?? "" : "";
-
-        var command = Get("RunCommand");
-        var target = Get("TargetPath");
+        var properties = Properties(buildOutput, "the game's output path");
+        var command = Get(properties, "RunCommand");
+        var target = Get(properties, "TargetPath");
         if (command.Length == 0)
             throw new ToolException("The build didn't report a run command; is the project an executable?");
-        var workingDirectory = Get("RunWorkingDirectory");
+        var workingDirectory = Get(properties, "RunWorkingDirectory");
         if (workingDirectory.Length == 0)
             workingDirectory = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
-        var enabled = string.Equals(Get("AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
-        return new RunCommand(command, Get("RunArguments"), workingDirectory, enabled);
+        var enabled = string.Equals(Get(properties, "AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
+        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, enabled);
     }
+
+    /// <summary>
+    /// The properties MSBuild reports with -getProperty: a JSON object starting on its own line, after any
+    /// warnings (which can themselves contain braces).
+    /// </summary>
+    private static JsonElement Properties(string output, string what)
+    {
+        var start = output.StartsWith('{') ? 0 : output.IndexOf("\n{", StringComparison.Ordinal);
+        if (start > 0)
+            ++start;
+        try
+        {
+            if (start >= 0)
+            {
+                using var json = JsonDocument.Parse(output[start..]);
+                if (json.RootElement.TryGetProperty("Properties", out var properties))
+                    return properties.Clone();
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        throw new ToolException($"MSBuild didn't report {what}:\n{string.Join('\n', output.Split('\n').TakeLast(20))}");
+    }
+
+    private static string Get(JsonElement properties, string name) =>
+        properties.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
 
     private static void Search(DirectoryInfo directory, int depth, List<GameProject> found)
     {
@@ -191,7 +210,7 @@ internal sealed partial class GameProject
     [GeneratedRegex(@"<IsTestProject>\s*true\s*</IsTestProject>|Microsoft\.NET\.Test\.Sdk|""xunit|""NUnit|""MSTest", RegexOptions.IgnoreCase)]
     private static partial Regex TestProject();
 
-    [GeneratedRegex(@"<TargetFramework>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<TargetFramework>\s*([^<]*?)\s*</TargetFramework>", RegexOptions.IgnoreCase)]
     private static partial Regex OneFramework();
 
     [GeneratedRegex(@"<TargetFrameworks>", RegexOptions.IgnoreCase)]

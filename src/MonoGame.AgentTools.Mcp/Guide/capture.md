@@ -19,7 +19,7 @@ growth, render, hitches, custom metrics), enough to judge a run; `full` returns 
 hitch causes and JIT method names. Both files are in the capture folder either way.
 
 Output in `.agenttools/captures/<name>/` (the folder has its own .gitignore). Unnamed captures are
-pruned to the 10 most recent; give a capture a `name` to keep it, such as a baseline before a change.
+pruned to the 10 most recent (profiles separately); give a capture a `name` to keep it, such as a baseline.
 - `summary.json`: frame-time percentiles, warm-up gates, allocations, GC, JIT, `GraphicsDevice.Metrics`,
   hitches with their likely cause (the 10 largest, plus a count of all), custom metric ranges, notes.
 - `frames.csv`: one row per frame with the same measurements; custom metrics are `custom.<name>` columns.
