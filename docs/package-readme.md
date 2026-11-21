@@ -1,6 +1,7 @@
 # MonoGame.AgentTools
 
-Let a coding agent run your MonoGame game, see what it draws and measure how it performs.
+Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
+game, then iterates autonomously.
 
 - **Deterministic capture**: the game's real `Update` and `Draw` at a fixed step with a hidden window.
 - **Contact sheets, before-and-after comparisons and GIFs** for judging motion.
@@ -19,6 +20,9 @@ using var game = new MyGame();
 AgentTools.Attach(game, args);
 game.Run();
 ```
+
+Requires MonoGame 3.8.5 DesktopGL and a game targeting .NET 8 or later. The MCP server runs through
+`dotnet dnx`, which needs the .NET 10 SDK or later on your machine.
 
 Build in Debug, then ask your agent to capture the game.
 
