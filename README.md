@@ -123,9 +123,7 @@ their changed pixels.*
 A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes:
 
 ```json
-{ "input": "f60 Space down
-f75 Space up
-t1.5 MouseLeft down 640,360", "name": "jump" }
+{ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" }
 ```
 
 Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control in MonoGame's own names,
