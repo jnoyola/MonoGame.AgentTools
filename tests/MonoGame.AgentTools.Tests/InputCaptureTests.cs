@@ -31,6 +31,7 @@ public sealed class InputCaptureTests : IDisposable
         f41 M up
         f42 Enter down
         f43 Enter up
+        f45 Text "hé \"x\""
         """;
 
     private readonly string _folder = Path.Combine(Path.GetTempPath(), $"agenttools-input-{Guid.NewGuid():N}");
@@ -49,12 +50,13 @@ public sealed class InputCaptureTests : IDisposable
         Capture("a", "--agenttools-input", script, "--agenttools-record", Path.Combine(_folder, "rec"));
         var a = Metrics("a");
 
-        Assert.Equal(103, a.Count - 1);   // the last event (f43) plus 1 s
+        Assert.Equal(105, a.Count - 1);   // the last event (f45) plus 1 s
         Assert.Equal(1, a[5]["key.space"]);
         Assert.Equal(0, a[8]["key.space"]);
         Assert.Equal(1, a[10]["key.f1"]);
         Assert.Equal(0, a[15]["key.capslock"]);   // the real lock state never reaches a capture
         Assert.Equal(1, a[43]["events.text"]);   // Enter raises TextInput, as MonoGame does for control characters
+        Assert.Equal(7, a[45]["events.text"]);   // one per typed character: h, é, space, quote, x, quote
         Assert.Equal((40.0, 30.0), (a[20]["mouse.x"], a[20]["mouse.y"]));
         Assert.Equal((60.0, 70.0, 1.0), (a[22]["mouse.x"], a[22]["mouse.y"], a[22]["mouse.left"]));
         Assert.Equal(240, a[27]["mouse.wheel"]);

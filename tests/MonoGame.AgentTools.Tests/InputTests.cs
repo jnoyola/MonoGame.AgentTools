@@ -106,6 +106,43 @@ public class InputTests
         Assert.Equal(0, e.Frame);
     }
 
+    [Theory]
+    [InlineData("""f10 Text "Ada Lovelace" """, "Ada Lovelace")]
+    [InlineData("""f10 Text "# not a comment"   # a comment""", "# not a comment")]
+    [InlineData("""t1.5 Text "say \"hi\" \\ é \n" """, "say \"hi\" \\ é \n")]
+    public void Text_lines_carry_one_quoted_string(string line, string expected)
+    {
+        var e = Assert.Single(InputScript.Parse(line, "s.input").Events);
+
+        Assert.Equal(ControlKind.Text, e.Control.Kind);
+        Assert.Equal(expected, e.Text);
+        Assert.Equal(expected, Assert.Single(InputScript.Parse("f1 " + e.Describe(), "s.input").Events).Text);
+    }
+
+    [Theory]
+    [InlineData("f10 Text")]
+    [InlineData("f10 Text Ada")]
+    [InlineData("""f10 Text "Ada" "Lovelace" """)]
+    [InlineData("""f10 Text "" """)]
+    public void Text_without_one_quoted_string_is_an_error(string line)
+    {
+        var error = Assert.Throws<FormatException>(() => InputScript.Parse(line, "s.input"));
+
+        Assert.Contains("Text takes one quoted string", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("plain")]
+    [InlineData("quote \" backslash \\ tab \t bell \u0007")]
+    [InlineData("accents é ñ, CJK 漢字, emoji 😀")]
+    public void Text_is_written_so_it_parses_back_the_same(string text)
+    {
+        var bytes = new byte[text.Length * InputText.MaxBytesPerChar + 2];
+        var written = InputText.Write(bytes, text);
+
+        Assert.Equal(text, InputText.Parse(System.Text.Encoding.UTF8.GetString(bytes, 0, written)));
+    }
+
     [Fact]
     public void Recording_over_the_input_being_replayed_is_refused()
     {

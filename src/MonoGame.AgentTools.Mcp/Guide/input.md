@@ -13,6 +13,8 @@ Script: one event per line, `<when> <control> <down|up|value>`; `#` comments.
 - gamepads: `PadA`, `PadB`, `PadX`, `PadY`, `PadStart`, `PadBack`, `PadDPadUp`…, `PadLeftShoulder`,
   `PadLeftStickButton` (click) `down`/`up`; `PadLeftStick x,y` (-1..1, y up, raw before dead zone);
   `PadLeftTrigger 0.8` (0..1). `Pad2A`… for players 2–4. Pads used are connected for the whole capture.
+- text: `Text "Ada"` (JSON string escapes) raises Window.TextInput once per character, for text
+  fields, chat and UI libraries; it presses no keys. Enter, Backspace and Tab come from their keys.
 - State holds until changed: release keys with `up`, re-center sticks with `0,0`.
 
 Example, a jump then a held move right:

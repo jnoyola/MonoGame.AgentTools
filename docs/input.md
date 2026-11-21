@@ -37,6 +37,12 @@ the first frame at or after it). Lines on the same frame apply in order. `#` sta
 | Gamepad buttons | `Pad` + `Buttons` names: `PadA`, `PadStart`, `PadDPadUp`, `PadLeftShoulder`; stick clicks are `PadLeftStickButton`, `PadRightStickButton` | `down`, `up` |
 | Thumbsticks | `PadLeftStick`, `PadRightStick` | `x,y` from -1 to 1, y up |
 | Triggers | `PadLeftTrigger`, `PadRightTrigger` | 0 to 1 |
+| Typed text | `Text` | a quoted string, escaped as in JSON: `Text "Ada \"the first\""` |
+
+`Text` raises `Window.TextInput` once per character, as typing does, for games with text fields, chat,
+consoles or UI libraries that read it. It presses no keys: script those separately if your game also
+reads them. Enter, Backspace, Tab, Escape and Delete raise `TextInput` from their key presses, as in
+MonoGame, so script them as keys. A recording keeps what you typed as `Text` lines.
 
 `Pad` is player one; `Pad2A` to `Pad4A` are the others. Gamepads a script uses are connected for the
 whole capture. Everything holds until changed: a key stays down until its `up`, a stick stays where it
@@ -117,7 +123,4 @@ number generators, and take time from `GameTime`, not `Stopwatch` or `DateTime`.
 Input works with DesktopGL on Windows, Linux and macOS, like the rest of capture. It feeds MonoGame's own
 input path through internal members of MonoGame 3.8.5. If a MonoGame version or platform changes them,
 a capture with a script fails up front with the member's name; one without a script still runs, with a
-note that the machine's own input isn't shut out.
-
-Scripts press keys, but don't type text yet: games that read `Window.TextInput` (text fields, chat,
-consoles, UI libraries) get key presses but no characters. See [Design](design.md#input-timing-and-replay-v02).
+note that the machine's own input isn't shut out. See [Design](design.md#input-timing-and-replay-v02).

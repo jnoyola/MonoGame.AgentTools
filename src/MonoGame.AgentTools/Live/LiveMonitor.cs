@@ -59,7 +59,8 @@ internal sealed class LiveMonitor : DrawableGameComponent
     public static void Install(Game game, CommandLineOptions options, AgentToolsSetup setup)
     {
         Precompile.Types(typeof(LiveMonitor), typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters),
-            typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters), typeof(MemoryHistory), typeof(ProcessMemory));
+            typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters), typeof(MemoryHistory), typeof(ProcessMemory),
+            typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
         var monitor = new LiveMonitor(game, options, setup);
         game.Components.Add(monitor);
         monitor.StartWatchdog(GameHooks.Bind(game));

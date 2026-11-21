@@ -66,7 +66,7 @@ internal static class CaptureRunner
         var (script, timingMode, timingPath, recordedTiming) = inputs;
 
         Precompile.Types(typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters), typeof(ResourceCounters), typeof(ProcessMemory),
-            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputRecorder), typeof(StreamedFile));
+            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
         ConfigureDevice(game, options);
         var hooks = GameHooks.Bind(game);
         if (!hooks.BeforeRun())
