@@ -1,9 +1,19 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.AgentTools;
+using MonoGame.AgentTools.Input;
 
 var exitAfter = Array.IndexOf(args, "--exit-after") is var i and >= 0 ? double.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture) : double.PositiveInfinity;
 using var game = new ProbeGame { IsFixedTimeStep = !args.Contains("--variable"), ExitAfterSeconds = exitAfter };
+// The recorder live sessions use, run inside a capture so a test can check that a recording of scripted
+// input replays identically, and that it allocates nothing per frame. Precompiled as live play does it. A
+// capture exits the process when it's done, so it's flushed then.
+if (Array.IndexOf(args, "--probe-record") is var r and >= 0)
+{
+    MonoGame.AgentTools.Runtime.Precompile.Types(typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
+    var recorder = game.Recorder = InputRecorder.Start(game, args[r + 1]);
+    AppDomain.CurrentDomain.ProcessExit += (_, _) => recorder.FlushFinal();
+}
 AgentTools.Attach(game, args, new()
 {
     CustomMetrics =
@@ -51,6 +61,7 @@ internal sealed class ProbeGame : Game
     public int KeyUps { get; private set; }
     public int TextInputs { get; private set; }
     public double ElapsedMs { get; private set; }
+    public InputRecorder? Recorder { get; set; }
 
     /// <summary>Live runs in tests exit on their own after this many seconds.</summary>
     public double ExitAfterSeconds { get; init; } = double.PositiveInfinity;
@@ -66,6 +77,9 @@ internal sealed class ProbeGame : Game
         Pad = GamePad.GetState(PlayerIndex.One, GamePadDeadZone.None);
         Pad2 = GamePad.GetState(PlayerIndex.Two, GamePadDeadZone.None);
         ElapsedMs = gameTime.ElapsedGameTime.TotalMilliseconds;
+        // MonoGame's first Update has a zero GameTime and isn't a frame, as the live monitor skips it.
+        if (gameTime.TotalGameTime != TimeSpan.Zero)
+            Recorder?.Sample(gameTime);
         base.Update(gameTime);
     }
 

@@ -90,14 +90,6 @@ public class HudTests
     }
 
     [Fact]
-    public void Hud_is_live_only()
-    {
-        Assert.True(CommandLineOptions.Parse(["--agenttools-hud"]).Hud);
-        var e = Assert.Throws<ArgumentException>(() => CommandLineOptions.Parse(["--agenttools-capture", "out", "--agenttools-hud"]));
-        Assert.Contains("live-only", e.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Panel_width_widens_at_once_and_narrows_after_the_hold()
     {
         var width = new PeakHold(holdSeconds: 5);

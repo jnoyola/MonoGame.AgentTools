@@ -1,8 +1,10 @@
 # performance
 Getting representative frame times and allocation numbers, and reading the warm-up gates.
 
-Capture with `save: "none"`, `realtime: true` and `seconds` of at least 5. Saving PNGs adds work to every
-frame, and without realtime frames run back to back, which isn't how the game runs.
+Use profile, not capture. A capture saves PNGs, which adds work to every frame, and runs frames back to
+back, which isn't how the game runs. profile paces frames to the step in real time and saves none. Keep
+its default 8 s or longer: under 5 s the gates may not open. Give it `input` to profile a scripted
+scene or a session the user played.
 
 Numbers taken while code is still being compiled or memory is still growing describe startup, not the
 game. Two gates in summary.json's `warmup` decide when measurements are representative:
@@ -28,6 +30,7 @@ say "too short to judge". `graphicsResources` (textures, render targets, buffers
 disposed) rising usually means one created per frame and never disposed. `privateBytes` (everything the
 process holds, including native and driver memory) is judged only over 30 s or more, where growth beyond
 8 MB means native memory growing: it moves in 4 MB steps, up and down, as the GC commits and releases
-regions, so a short capture can't tell a step from a leak. `heapBytes` isn't judged: it includes garbage not yet collected, so it rises with any
-allocation until a GC, and those allocations are already counted above. Live stats
-(`--agenttools-stats`) record memory once a second for the whole session, for slower growth.
+regions, so a short run can't tell a step from a leak. `heapBytes` isn't judged: it includes garbage not yet collected, so it rises with any
+allocation until a GC, and those allocations are already counted above. Every live session's
+`summary.json` and `memory.csv` in .agenttools/sessions record memory once a second for the whole
+session, for slower growth.

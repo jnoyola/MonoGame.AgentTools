@@ -144,27 +144,6 @@ public class InputTests
     }
 
     [Fact]
-    public void Recording_over_the_input_being_replayed_is_refused()
-    {
-        var folder = Directory.CreateTempSubdirectory("agenttools-collision").FullName;
-        try
-        {
-            var input = Path.Combine(folder, "boss.input");
-            File.WriteAllText(input, "f1 Space down\n");
-            var options = CommandLineOptions.Parse(["--agenttools-capture", folder, "--agenttools-input", input, "--agenttools-record", Path.Combine(folder, "boss")]);
-
-            var error = Assert.Throws<ArgumentException>(() => CaptureRunner.CaptureInputs.Load(options));
-
-            Assert.Contains("would overwrite", error.Message, StringComparison.Ordinal);
-            Assert.Equal("f1 Space down\n", File.ReadAllText(input));
-        }
-        finally
-        {
-            Directory.Delete(folder, recursive: true);
-        }
-    }
-
-    [Fact]
     public void Fixed_clock_counts_steps_and_maps_times_to_the_first_frame_at_or_after()
     {
         var clock = FrameClock.Fixed(Step);
@@ -247,7 +226,7 @@ public class InputTests
         Assert.Equal(60, CaptureRunner.FrameCount(options, clock, null, null));
         Assert.Equal(210, CaptureRunner.FrameCount(options, clock, script, null));   // the last event plus 1 s
         Assert.Equal(103, CaptureRunner.FrameCount(options, FrameClock.FromFile(new long[103], Step), script, new long[103]));
-        Assert.Equal(30, CaptureRunner.FrameCount(options with { DurationSeconds = 0.5 }, clock, script, null));
+        Assert.Equal(30, CaptureRunner.FrameCount(options with { Duration = new RunLength(0.5, null) }, clock, script, null));
     }
 
     [Fact]

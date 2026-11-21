@@ -1,9 +1,28 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MonoGame.AgentTools.Mcp.Games;
 
-internal static class CommandLine
+internal static partial class CommandLine
 {
+    public const string Prefix = "--agenttools-";
+
+    /// <summary>The game's flag for a tool parameter: <c>jitNames</c> is <c>--agenttools-jit-names</c>.</summary>
+    public static string Flag(string parameter) => Prefix + UpperLetter().Replace(parameter, m => "-" + char.ToLowerInvariant(m.Value[0]));
+
+    /// <summary>The game's own words with each flag named as the tool parameter it came from, for an error the agent can act on.</summary>
+    public static string AsParameters(string text) =>
+        FlagName().Replace(text, m => DashLetter().Replace(m.Groups[1].Value, d => char.ToUpperInvariant(d.Value[1]).ToString()));
+
+    [GeneratedRegex("[A-Z]")]
+    private static partial Regex UpperLetter();
+
+    [GeneratedRegex("--agenttools-([a-z]+(?:-[a-z]+)*)")]
+    private static partial Regex FlagName();
+
+    [GeneratedRegex("-[a-z]")]
+    private static partial Regex DashLetter();
+
     /// <summary>
     /// Joins arguments into one command line that <c>CommandLineToArgvW</c> and the .NET runtime split
     /// back into the same arguments (the rules <c>ProcessStartInfo.ArgumentList</c> applies).

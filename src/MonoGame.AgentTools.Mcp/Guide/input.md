@@ -1,8 +1,8 @@
 # input
-Driving the keyboard, mouse and gamepads in a capture, replaying recordings, and frame timing.
+Driving the keyboard, mouse and gamepads in a capture or profile, replaying sessions the user played, and frame timing.
 
-Pass capture `input`: the script text, a path to an `.input` file, or a capture's name to replay its
-input. The game reads it through its normal `Keyboard`/`Mouse`/`GamePad.GetState()` calls and
+Pass `input`: the script text, a path to an `.input` file, or the name of a capture or a live session
+to replay its input. The game reads it through its normal `Keyboard`/`Mouse`/`GamePad.GetState()` calls and
 `Window.KeyDown`/`KeyUp`; it needs no changes. Captures never read the machine's own input.
 
 Script: one event per line, `<when> <control> <down|up|value>`; `#` comments.
@@ -27,7 +27,7 @@ f100 Right up
 
 A press needs at least one frame down: a down and up on the same frame is never seen by `GetState`
 (the notes warn). Hold for a few frames (f30 down, f36 up) for a tap the game reliably sees. Without
-`seconds` the capture runs to 1 s after the last event. summary.json `input.byFrame` lists what was
+`duration` the capture runs to 1 s after the last event. summary.json `input.byFrame` lists what was
 applied on each frame; the brief says how many events applied.
 
 Timing (`timing`): `fixed` (default, the game's own step; repeatable), `real` (measured frame times,
@@ -35,8 +35,11 @@ paced to the step like vsync and kept as capture.timing; for frame-rate-dependen
 variable-step game), or a capture's name or `.timing` file to replay its frame times exactly. A replayed input's own
 timing comes with it unless `timing` says otherwise.
 
-Recordings: the user runs the game with `--agenttools-record <path>` and plays; `<path>.input` (and
-`<path>.timing`) replay what they did. To check a fix against the moment they recorded, capture with
-`input: "<path>.input"` before and after, and compare with `sheet.against`.
+Sessions: every time the user plays (a Debug build run without capture or profile), the game records
+what it read to `.agenttools/sessions/<Game>-<yyyyMMdd-HHmmss>/`: `session.input`, `session.timing` for a
+variable-step game, and `summary.json`. The 10 most recent are kept; a renamed folder is kept for good.
+List the folder for the newest. Pass its name as `input` to replay it; its timing comes with it. To check
+a fix against a moment the user played, capture with that input before and after, and compare with
+`sheet.against`.
 
 A replay matches only if the game is deterministic: seeded randomness, time from `GameTime`.

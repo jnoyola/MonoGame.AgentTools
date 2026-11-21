@@ -55,6 +55,22 @@ internal sealed class InputRecorder : IDisposable
             _pads[i] = GamePadState.Default;
         _onTextInput = OnTextInput;
         game.Window.TextInput += _onTextInput;
+        WarmFormatting();
+    }
+
+    /// <summary>
+    /// Formats one of each value an event can hold, so the first event of a session doesn't compile the
+    /// generic UTF-8 formatting code mid-frame, which <see cref="Runtime.Precompile"/> can't reach.
+    /// </summary>
+    private static void WarmFormatting()
+    {
+        Span<byte> scratch = stackalloc byte[MaxLine + 2 * InputText.MaxBytesPerChar];
+        Seconds(scratch, TimeSpan.TicksPerSecond + 1);
+        Milliseconds(scratch, TimeSpan.TicksPerMillisecond + 1);
+        Int(new Line(scratch, 0), -1);
+        Float(new Line(scratch, 0), -0.5f);
+        (-1.5).TryFormat(scratch, out _, "+0.###;-0.###", System.Globalization.CultureInfo.InvariantCulture);
+        InputText.Write(scratch, "é\"");
     }
 
     public string InputPath { get; }

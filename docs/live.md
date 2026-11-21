@@ -1,12 +1,12 @@
 # Live play
 
-Captures run a fixed amount of game time with a hidden window. Live play measures the game as you play
-it.
+Captures and profiles run a set amount of game time with a hidden window. Live play is your game as you
+play it, with the HUD to see the measurements and every session recorded for the agent.
 
 ## HUD
 
-```
-MyGame --agenttools-hud
+```csharp
+AgentTools.Attach(game, args, new() { ShowHud = true });
 ```
 
 <!-- TODO: images/hud.png, a screenshot of a game with the HUD on. -->
@@ -21,45 +21,46 @@ The HUD shows, in the top-right corner:
 - `GraphicsDevice.Metrics` for the game's own draws
 - your notes and custom metrics
 
-Yellow and red mark what needs attention. Backtick (`` ` ``) toggles it, with or without the option. The
-HUD's own drawing, allocations and JIT are left out of the measurements, and it allocates nothing per
-frame. It's never drawn in captures, since it shows wall-clock values that would make frames differ
-between runs.
+Yellow and red mark what needs attention. Backtick (`` ` ``) toggles it, whether `ShowHud` is on or not.
+The HUD's own drawing, allocations and JIT are left out of the measurements, and it allocates nothing per
+frame. `ShowHud` applies to live play only: captures and profiles never draw the HUD, since it shows
+wall-clock values that would make frames differ between runs.
 
-To start with it visible without the option:
+## Sessions
 
-```csharp
-AgentTools.Attach(game, args, new() { ShowHud = true });
-```
-
-## Session stats
+Every time you play, the game records the session to its own folder under `.agenttools/sessions` at the
+root of your repository, beside the agent's captures:
 
 ```
-MyGame --agenttools-stats out/live.json
+.agenttools/sessions/MyGame-20261121-093000/
 ```
-
-Measures every frame of normal play and writes three files when the game exits:
 
 | File | Contents |
 |---|---|
-| `live.json` | The same summary as a capture, over the session |
-| `live.csv` | One row per frame for the last 4096 frames |
-| `live.memory.csv` | Heap, private bytes and GPU resources once a second for the whole session |
+| `session.input` | What the game read from the keyboard, mouse and gamepads, and what you typed, frame by frame |
+| `session.timing` | Each frame's elapsed time, for a variable-step game |
+| `summary.json` | The same summary as a capture, over the session, with a `recording` section |
+| `frames.csv` | One row per frame for the last 4096 frames |
+| `memory.csv` | Heap, private bytes and GPU resources once a second for the whole session |
 
-`growth` in `live.json` covers the session from the memory gate to the end. Over a long session it judges
-private bytes too, so steady native growth shows up. Steady growth means something is created repeatedly
-and kept, or never disposed.
+The input is written as you go, so a crash keeps it, and a killed process loses at most the last second.
+The other files are written when the game exits normally (closing the window or calling `Exit`). An
+agent replays a session by its folder's name, exactly; see [Input and replay](input.md#recording).
 
-The game has to exit normally (closing the window or calling `Exit`) for the files to be written.
+The 10 most recent sessions are kept and older ones deleted when a new one starts. Rename a session's
+folder to keep it. Recording allocates nothing per frame.
 
-## Recording input
+`growth` in `summary.json` covers the session from the memory gate to the end. Over a long session it
+judges private bytes too, so steady native growth shows up. Steady growth means something is created
+repeatedly and kept, or never disposed.
 
+The folder is the nearest one above the game's output that holds `.git`, the same root the build adds
+`.mcp.json` to, or `AgentToolsRoot` if the project sets it. `.agenttools` gets its own `.gitignore`, so
+sessions are never committed. To record nothing:
+
+```csharp
+AgentTools.Attach(game, args, new() { RecordSessions = false });
 ```
-MyGame --agenttools-record sessions/boss
-```
 
-Writes what the game reads from the keyboard, mouse and gamepads to `sessions/boss.input` as you play,
-and each frame's elapsed time to `sessions/boss.timing` for a variable-step game. A capture replays it
-exactly; see [Input and replay](input.md). The files are written as you go, so a crash keeps them, and a
-killed process loses at most the last second. With `--agenttools-stats`, `live.json` gets a `recording`
-section: events, peak events per second, and buffer use.
+Sessions hold what you type, so a session in which you typed a password holds the password. They stay on
+your machine unless you share them.

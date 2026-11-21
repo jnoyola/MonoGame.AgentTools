@@ -9,8 +9,9 @@ internal static class ServerInstructions
         - contact_sheet: another sheet from an existing capture (a closer time range or crop), without re-running.
         - Before and after a change: name a baseline capture, then pass sheet.against (or contact_sheet against) to see what changed, frame by frame.
         - gif: an animated GIF of a capture (or A beside B) for the user to watch; you get only its path. Offer one when the user should judge motion.
-        - input: capture can press keys, click and move gamepad sticks ("f30 Space down"), or replay a recording of the user playing; see guide topic input.
-        - Check visual changes in motion, not from one frame. For performance numbers use save "none", realtime true and at least 5 s.
+        - profile: runs the game paced in real time with no frames saved, 8 s by default; use it, not capture, for performance numbers.
+        - input: capture and profile can press keys, click and move gamepad sticks ("f30 Space down"), or replay a session the user played (each is recorded to .agenttools/sessions); see guide topic input.
+        - Check visual changes in motion, not from one frame.
         - guide: setup, options and how to read the measurements.
         """;
 }

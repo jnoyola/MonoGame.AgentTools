@@ -9,6 +9,24 @@ internal sealed class Workspace(string root)
 
     public string CapturesDirectory => Path.Combine(Root, FolderName, "captures");
 
+    /// <summary>Where the game records live play, one folder per session (written by the library, not the server).</summary>
+    public string SessionsDirectory => Path.Combine(Root, FolderName, "sessions");
+
+    /// <summary>
+    /// A capture or live session by name, with the input and timing files it keeps: a capture first, then
+    /// a session. Null when neither exists or the name is a path.
+    /// </summary>
+    public RunFolder? FindRun(string name)
+    {
+        if (!IsPlainName(name))
+            return null;
+        if (Path.Combine(CapturesDirectory, name) is var capture && Directory.Exists(capture))
+            return new RunFolder(capture, "capture.input", "capture.timing");
+        if (Path.Combine(SessionsDirectory, name) is var session && Directory.Exists(session))
+            return new RunFolder(session, "session.input", "session.timing");
+        return null;
+    }
+
     /// <summary>
     /// Creates the output folder with a <c>.gitignore</c> of <c>*</c>, so captures are never committed
     /// and nothing needs adding to the repository's own ignore file (as pytest and Ruff do for their caches).
@@ -92,3 +110,6 @@ internal sealed class Workspace(string root)
     public static bool IsPlainName(string name) =>
         name.Length > 0 && name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && name is not ("." or "..");
 }
+
+/// <summary>A capture's or session's folder and the names of the input and timing files in it.</summary>
+internal sealed record RunFolder(string Folder, string Input, string Timing);

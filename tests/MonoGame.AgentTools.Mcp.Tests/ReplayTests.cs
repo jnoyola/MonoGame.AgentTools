@@ -15,49 +15,59 @@ public sealed class ReplayTests : IDisposable
     [InlineData("f60 Space down")]
     [InlineData("t1.5 MouseLeft down 640,360")]
     [InlineData("# jump\nf60 Space down\nf75 Space up")]
-    public void Script_text_is_taken_as_is(string text)
+    public void Script_text_is_written_into_the_run_folder(string text)
     {
-        var replay = ReplayInputs.Resolve(_workspace, text, null);
+        var output = Directory.CreateDirectory(Path.Combine(_root, "out")).FullName;
 
-        Assert.Equal(text, replay.Script);
-        Assert.Null(replay.Timing);
+        var arguments = ReplayInputs.Resolve(_workspace, text, null).Arguments(output).ToList();
+
+        Assert.Equal(["--agenttools-input", Path.Combine(output, ReplayInputs.CaptureInput)], arguments);
+        Assert.Equal(text, File.ReadAllText(arguments[1]));
     }
 
     [Fact]
-    public void A_file_brings_the_timing_beside_it()
+    public void A_file_is_passed_as_it_is_and_the_game_pairs_its_timing()
     {
         File.WriteAllText(Path.Combine(_root, "f60.input"), "f60 Space down");
-        File.WriteAllBytes(Path.Combine(_root, "f60.timing"), [1, 2, 3]);
 
         var replay = ReplayInputs.Resolve(_workspace, "f60.input", null);
-        var overridden = ReplayInputs.Resolve(_workspace, "f60.input", "fixed");
+        var overridden = ReplayInputs.Resolve(_workspace, "f60.input", "FIXED");
 
-        Assert.Equal("f60 Space down", replay.Script);
-        Assert.Equal([1, 2, 3], replay.Timing);
-        Assert.Null(overridden.Timing);
-        Assert.Equal("fixed", overridden.TimingMode);
+        Assert.Equal(["--agenttools-input", Path.Combine(_root, "f60.input")], replay.Arguments(_root));
+        Assert.Equal(["--agenttools-input", Path.Combine(_root, "f60.input"), "--agenttools-timing", "fixed"], overridden.Arguments(_root));
     }
 
     [Fact]
-    public void A_capture_name_replays_its_input_and_timing_and_writes_them_into_the_new_capture()
+    public void Captures_and_sessions_replay_by_name_and_a_capture_wins_a_shared_name()
     {
-        var capture = Path.Combine(_workspace.EnsureCapturesDirectory(), "session");
-        Directory.CreateDirectory(capture);
-        File.WriteAllText(Path.Combine(capture, ReplayInputs.InputFile), "f1 A down");
-        File.WriteAllBytes(Path.Combine(capture, ReplayInputs.TimingFile), [9]);
-        var replay = ReplayInputs.Resolve(_workspace, "session", null);
+        var capture = Directory.CreateDirectory(Path.Combine(_workspace.CapturesDirectory, "jump")).FullName;
+        File.WriteAllText(Path.Combine(capture, "capture.input"), "f1 A down");
+        var session = Directory.CreateDirectory(Path.Combine(_workspace.SessionsDirectory, "Game-20261121-093000")).FullName;
+        File.WriteAllText(Path.Combine(session, "session.input"), "f1 B down");
+        File.WriteAllBytes(Path.Combine(session, "session.timing"), [9]);
+        Directory.CreateDirectory(Path.Combine(_workspace.SessionsDirectory, "jump"));
 
-        // The capture may replace the folder it replays, so the files are read before it's cleared.
-        Directory.Delete(capture, recursive: true);
-        Directory.CreateDirectory(capture);
-        var arguments = replay.Write(capture).ToList();
+        Assert.Equal(Path.Combine(capture, "capture.input"), ReplayInputs.Resolve(_workspace, "jump", null).InputPath);
+        var replay = ReplayInputs.Resolve(_workspace, "Game-20261121-093000", "Game-20261121-093000");
+        Assert.Equal(Path.Combine(session, "session.input"), replay.InputPath);
+        Assert.Equal(Path.Combine(session, "session.timing"), replay.Timing);
+    }
 
-        Assert.Equal(["--agenttools-input", Path.Combine(capture, ReplayInputs.InputFile), "--agenttools-timing", Path.Combine(capture, ReplayInputs.TimingFile)], arguments);
-        Assert.Equal("f1 A down", File.ReadAllText(Path.Combine(capture, ReplayInputs.InputFile)));
+    [Fact]
+    public void Replaying_into_the_folder_being_replaced_is_refused()
+    {
+        var capture = Directory.CreateDirectory(Path.Combine(_workspace.CapturesDirectory, "jump")).FullName;
+        File.WriteAllText(Path.Combine(capture, "capture.input"), "f1 A down");
+        var replay = ReplayInputs.Resolve(_workspace, "jump", null);
+
+        replay.CheckNotIn(Path.Combine(_workspace.CapturesDirectory, "jump-2"), "jump-2");
+        var error = Assert.Throws<ToolException>(() => replay.CheckNotIn(capture, "jump"));
+        Assert.Contains("give this run another name", error.Message, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("nonexistent", null, "isn't a script")]
+    [InlineData(null, "nonexistent", "timing must be 'fixed', 'real'")]
     [InlineData(null, "slow", "timing must be 'fixed', 'real'")]
     public void Unresolvable_input_or_timing_says_what_it_expects(string? input, string? timing, string message)
     {

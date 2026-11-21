@@ -5,7 +5,7 @@ game, then iterates autonomously.
 
 ![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
 
-*The Earth Slam, an effect from a MonoGame visual-effects study. Made with `capture`, then `gif` of
+*The Earth Slam, an effect from a MonoGame visual-effects game. Made with `capture`, then `gif` of
 its first 1.9 s at 30 fps.*
 
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
@@ -75,11 +75,11 @@ The agent calls `capture`. The tool builds the game, runs it and returns a short
 a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera:
 
 ```json
-{ "frames": 150, "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" }
+{ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" }
 ```
 
 ```text
-Captured Study2.Game.DesktopGL to .agenttools/captures/slam-heavy
+Captured MyGame.DesktopGL to .agenttools/captures/slam-heavy
 Sheet .agenttools/captures/slam-heavy/sheets/f1-f150_c4_n12.png (1286x544), 4 per row: f1 0.017s, f15 0.250s, f28 0.467s, f42 0.700s, f55 0.917s, f69 1.150s, f82 1.367s, f96 1.600s, f109 1.817s, f123 2.050s, f136 2.267s, f150 2.500s
 150 frames, fixed 16.6667 ms step (60 fps): 2.5 s game time, 1.59 s wall, 1280x720
 Notes: Esc - exit; show earthslam, camera front, studio
@@ -133,21 +133,22 @@ and what it does. `input` also takes a file, or a capture's name to replay its i
 { "input": "jump", "name": "jump-after-fix", "sheet": { "against": "jump" } }
 ```
 
-It replays [your recordings](#recording) the same way, frame for frame. Your game keeps calling
+It replays [the sessions you play](#recording) the same way, frame for frame. Your game keeps calling
 `Keyboard`, `Mouse` and `GamePad.GetState()` and doesn't change. Captures never read your own cursor or
 gamepad, so they stay repeatable. See [Input and replay](docs/input.md).
 
 ### Performance
 
-For numbers that describe the game rather than the capture, the agent captures without saving frames, in
-real time, for at least 5 seconds:
+For numbers that describe the game rather than the capture, the agent calls `profile`. It runs the game
+paced in real time, as you play it, saving no frames, for 8 seconds by default. It takes the same
+`input`, so it can profile a scripted scene or a session you played:
 
 ```json
-{ "seconds": 8, "save": "none", "realtime": true }
+{ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] }
 ```
 
 ```text
-480 frames, fixed 16.6667 ms step (60 fps): 8 s game time, 8.48 s wall, 1280x720
+480 frames, paced in real time, fixed 16.6667 ms step (60 fps): 8 s game time, 8.48 s wall, 1280x720
 Notes: Esc - exit; show earthslam, camera front, studio
 Warm-up: memory stable at f62; performance stable at f129, then disturbed 3 times from f180
 Frame CPU ms (after warm-up): p50 0.29, p95 0.73, p99 1.02, max 1.27
@@ -170,7 +171,7 @@ a per-frame allocation worth fixing. See [Performance](docs/performance.md) for 
 
 With `ShowHud`, the HUD shows the agent's measurements in the corner while you play: frame times,
 allocations, GCs, memory, GPU resources, JIT, the warm-up gates, draw calls and your custom metrics.
-Backtick toggles it. A whole session can also be recorded as stats; see [Live play](docs/live.md).
+Backtick toggles it. Each session's stats are kept too; see [Live play](docs/live.md).
 
 <!-- TODO: docs/images/hud.png, a screenshot of a game with the HUD on. -->
 
@@ -187,14 +188,10 @@ When a choice is about how something feels in motion, the agent can make a GIF a
 
 ### Recording
 
-When something goes wrong while you play, record it and hand it to the agent:
-
-```
-MyGame --agenttools-record sessions/boss
-```
-
-`sessions/boss.input` is written as you go, so even a crash keeps it. Give the agent its path, and it
-[replays exactly what your game read](#playing-the-game), frame for frame, as many times as it needs.
+Every time you play, the game records what it read from your keyboard, mouse and gamepads to
+`.agenttools/sessions`, written as you go so even a crash keeps it. When something goes wrong, tell the
+agent, and it [replays exactly what your game read](#playing-the-game), frame for frame, as many times
+as it needs. The 10 most recent sessions are kept; rename a session's folder to keep it for good.
 
 ## Configuration
 
@@ -243,7 +240,7 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 - [Capture](docs/capture.md): command-line options, determinism and output files
 - [Performance](docs/performance.md): warm-up gates, allocations, memory growth and hitches
 - [Input and replay](docs/input.md): input scripts, recording, and frame timing
-- [Live play](docs/live.md): the HUD, session stats and recording
+- [Live play](docs/live.md): the HUD and recorded sessions
 - [Design](docs/design.md): how it works and why, with the precedents it follows
 
 Agents get the same guidance from the server's `guide` tool.

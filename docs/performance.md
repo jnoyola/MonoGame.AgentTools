@@ -1,17 +1,19 @@
 # Performance
 
-How to get representative numbers, and how to read each line of a capture's summary.
+How to get representative numbers, and how to read each line of a run's summary.
 
 ## Representative runs
 
-Capture without saving frames, in real time, for at least 5 seconds:
+Take performance numbers from a profile, the MCP `profile` tool:
 
 ```
-MyGame --agenttools-capture out/perf --agenttools-duration 8 --agenttools-save none --agenttools-realtime
+MyGame --agenttools-profile out/perf
 ```
 
-Saving PNGs adds work to every frame, and without `realtime` frames run back to back, which isn't how the
-game runs. The warm-up gates are measured in wall time, so short runs may never reach them.
+A capture saves PNGs, which adds work to every frame, and runs frames back to back, which isn't how the
+game runs. A profile paces frames to the step in real time, as vsync would, and saves none. It runs 8 s
+by default: the warm-up gates are measured in wall time, so a run under 5 s may end before they open,
+and its notes say so. With `input`, a profile measures a scripted scene or a session you played.
 
 ## Warm-up
 
@@ -50,14 +52,14 @@ problem:
 - **Private bytes** (everything the process holds, including native and driver memory) are judged only
   over 30 s or more, and growth beyond 8 MB counts as native memory growing. The counter moves in 4 MB
   steps, up and down, as the .NET GC commits and releases memory regions and drivers commit memory, so a
-  short capture can't tell a step from a leak. Use live stats for this.
+  short run can't tell a step from a leak. Use a live session for this.
 - **Heap size** isn't judged: it includes garbage not yet collected, so it rises with any allocation until
   a GC, and those allocations are already counted on their own line.
 
 ## Finding slow growth
 
-Live stats (`--agenttools-stats`) record heap, private bytes and GPU resources once a second for the
-whole session, so growth that takes minutes shows up. See [Live play](live.md).
+Every live session records heap, private bytes and GPU resources once a second for the whole session,
+so growth that takes minutes shows up. See [Live play](live.md#sessions).
 
 ## Prewarming
 

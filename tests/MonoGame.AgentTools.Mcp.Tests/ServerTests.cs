@@ -48,6 +48,26 @@ public class ServerTests
     }
 
     [Theory]
+    [InlineData("", "net8.0;net11.0", null, "net8.0")]
+    [InlineData("", "net8.0;net11.0", "NET11.0", "NET11.0")]
+    [InlineData("", " net10.0 ", null, "net10.0")]
+    [InlineData("net10.0", "", null, null)]
+    [InlineData("net10.0", "", "net10.0", null)]
+    public void A_multi_targeted_game_runs_its_first_framework_unless_told(string one, string several, string? asked, string? expected)
+    {
+        var output = $$"""{ "Properties": { "TargetFramework": "{{one}}", "TargetFrameworks": "{{several}}" } }""";
+        Assert.Equal(expected, GameProject.ChooseFramework(output, asked));
+    }
+
+    [Fact]
+    public void A_framework_the_game_doesnt_target_lists_the_ones_it_does()
+    {
+        var output = """{ "Properties": { "TargetFramework": "", "TargetFrameworks": "net8.0;net11.0" } }""";
+        var error = Assert.Throws<ToolException>(() => GameProject.ChooseFramework(output, "net9.0"));
+        Assert.Equal("framework 'net9.0' isn't one the project targets: net8.0, net11.0.", error.Message);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("Game.cs(1,1): warning CS0169: The field 'x' is never used")]
     public void Build_output_without_properties_is_a_clear_error(string output)

@@ -47,7 +47,7 @@ public sealed class InputCaptureTests : IDisposable
         var script = Path.Combine(_folder, "script.input");
         File.WriteAllText(script, Script);
 
-        Capture("a", "--agenttools-input", script, "--agenttools-record", Path.Combine(_folder, "rec"));
+        Capture("a", "--agenttools-input", script, "--probe-record", Path.Combine(_folder, "rec"));
         var a = Metrics("a");
 
         Assert.Equal(105, a.Count - 1);   // the last event (f45) plus 1 s
@@ -82,7 +82,7 @@ public sealed class InputCaptureTests : IDisposable
         File.WriteAllText(script, Script);
 
         Capture("real", "--variable", "--agenttools-input", script, "--agenttools-timing", "real",
-            "--agenttools-record", Path.Combine(_folder, "vrec"));
+            "--probe-record", Path.Combine(_folder, "vrec"));
         // Paced to the step like vsync: unpaced, the probe's frames measure under 1 ms.
         Assert.InRange(Metrics("real").Skip(2).Average(f => f["dt.ms"]), 12, 30);
         Assert.StartsWith("# Input recorded", File.ReadAllText(Path.Combine(_folder, "vrec.input")), StringComparison.Ordinal);
@@ -119,12 +119,44 @@ public sealed class InputCaptureTests : IDisposable
         Assert.SkipWhen(Environment.GetEnvironmentVariable("CI") == "true" || !OperatingSystem.IsWindows(),
             "Runs a game: needs a GPU and a desktop session (checked on Windows).");
 
-    private void Capture(string name, params string[] args)
+    [Fact]
+    public void Live_play_records_each_session_under_the_repository_root()
     {
-        var probe = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "InputProbe",
-            new DirectoryInfo(AppContext.BaseDirectory).Name, OperatingSystem.IsWindows() ? "InputProbe.exe" : "InputProbe"));
-        var start = new ProcessStartInfo(probe) { RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var arg in new[] { "--agenttools-capture", Path.Combine(_folder, name), "--agenttools-save", "none" }.Concat(args))
+        SkipWithoutDesktop();
+        // A copy of the probe in a repository of its own, so its sessions don't land in this one.
+        var repository = Path.Combine(_folder, "repository");
+        var bin = Path.Combine(repository, "bin");
+        foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(Probe)!, "*", SearchOption.AllDirectories))
+        {
+            var copy = Path.Combine(bin, Path.GetRelativePath(Path.GetDirectoryName(Probe)!, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+            File.Copy(file, copy);
+        }
+        Directory.CreateDirectory(Path.Combine(repository, ".git"));
+
+        Run(Path.Combine(bin, Path.GetFileName(Probe)), "--exit-after", "1");
+
+        var session = Assert.Single(Directory.GetDirectories(Path.Combine(repository, ".agenttools", "sessions")));
+        Assert.Matches(@"ProbeGame-\d{8}-\d{6}$", session);
+        Assert.StartsWith("# Input recorded", File.ReadAllText(Path.Combine(session, "session.input")), StringComparison.Ordinal);
+        var summary = JsonSerializer.Deserialize<JsonElement>(File.ReadAllText(Path.Combine(session, "summary.json")));
+        Assert.Equal("live", summary.GetProperty("mode").GetString());
+        Assert.InRange(summary.GetProperty("recording").GetProperty("frames").GetInt32(), 30, 200);
+        Assert.True(File.Exists(Path.Combine(session, "frames.csv")));
+        Assert.True(File.Exists(Path.Combine(session, "memory.csv")));
+        Assert.EndsWith("\n*\n", File.ReadAllText(Path.Combine(repository, ".agenttools", ".gitignore")), StringComparison.Ordinal);
+    }
+
+    private static string Probe => Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "InputProbe",
+        new DirectoryInfo(AppContext.BaseDirectory).Name, OperatingSystem.IsWindows() ? "InputProbe.exe" : "InputProbe"));
+
+    private void Capture(string name, params string[] args) =>
+        Run(Probe, new[] { "--agenttools-capture", Path.Combine(_folder, name), "--agenttools-save", "none" }.Concat(args).ToArray());
+
+    private static void Run(string game, params string[] args)
+    {
+        var start = new ProcessStartInfo(game) { RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in args)
             start.ArgumentList.Add(arg);
         using var process = Process.Start(start)!;
         var error = process.StandardError.ReadToEndAsync();

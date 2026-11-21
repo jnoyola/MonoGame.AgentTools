@@ -58,16 +58,52 @@ internal sealed partial class GameProject
     }
 
     /// <summary>
-    /// Builds <paramref name="configuration"/> and returns how to start the game, after checking that the
+    /// The framework to build and run, for a project that targets several: <paramref name="framework"/>
+    /// if it's one of them, else the first listed, as Visual Studio's debug target defaults to. Null for a
+    /// project with one framework. Found by evaluating the project, which sees frameworks set in imported
+    /// files such as Directory.Build.props, and builds nothing. Skipped (it takes about a second) when the
+    /// project file names one framework itself and none was asked for.
+    /// </summary>
+    public async Task<string?> ChooseFrameworkAsync(string configuration, string? framework, CancellationToken cancellationToken)
+    {
+        var project = await File.ReadAllTextAsync(Path, cancellationToken).ConfigureAwait(false);
+        if (framework is null && OneFramework().IsMatch(project) && !Frameworks().IsMatch(project))
+            return null;
+        string[] args = ["msbuild", Path, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetFramework", "-getProperty:TargetFrameworks"];
+        var result = await ProcessRunner.RunAsync("dotnet", args, workingDirectory: null, TimeSpan.FromMinutes(2), cancellationToken).ConfigureAwait(false);
+        if (result.TimedOut || result.ExitCode != 0)
+            throw new ToolException($"Couldn't read {Name}'s target frameworks (exit code {result.ExitCode}):\n{result.Tail()}");
+        return ChooseFramework(result.Output, framework);
+    }
+
+    internal static string? ChooseFramework(string evaluationOutput, string? framework)
+    {
+        using var json = JsonDocument.Parse(evaluationOutput[evaluationOutput.IndexOf('{', StringComparison.Ordinal)..]);
+        var properties = json.RootElement.GetProperty("Properties");
+        var single = properties.GetProperty("TargetFramework").GetString() ?? "";
+        var frameworks = single.Length > 0
+            ? [single]
+            : (properties.GetProperty("TargetFrameworks").GetString() ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (framework is not null && !frameworks.Contains(framework, StringComparer.OrdinalIgnoreCase))
+            throw new ToolException($"framework '{framework}' isn't one the project targets: {string.Join(", ", frameworks)}.");
+        if (single.Length > 0)
+            return null;
+        return framework ?? frameworks.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Builds <paramref name="configuration"/> (for <paramref name="framework"/> when the project has
+    /// several) and returns how to start the game, after checking that the
     /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise). Without them
     /// AgentTools.Attach is compiled out, so the game would ignore the capture options and never exit. The
     /// target is explicit: with -getProperty alone, MSBuild only evaluates the project and builds nothing.
     /// </summary>
-    public async Task<RunCommand> BuildAsync(string configuration, CancellationToken cancellationToken)
+    public async Task<RunCommand> BuildAsync(string configuration, string? framework, CancellationToken cancellationToken)
     {
         string[] args =
         [
             "build", Path, "-c", configuration, "-nologo", "-t:Build",
+            .. framework is null ? Array.Empty<string>() : ["-f", framework],
             "-getProperty:RunCommand", "-getProperty:RunArguments", "-getProperty:RunWorkingDirectory", "-getProperty:TargetPath",
             "-getProperty:AgentToolsEnabled",
         ];
@@ -154,6 +190,12 @@ internal sealed partial class GameProject
 
     [GeneratedRegex(@"<IsTestProject>\s*true\s*</IsTestProject>|Microsoft\.NET\.Test\.Sdk|""xunit|""NUnit|""MSTest", RegexOptions.IgnoreCase)]
     private static partial Regex TestProject();
+
+    [GeneratedRegex(@"<TargetFramework>", RegexOptions.IgnoreCase)]
+    private static partial Regex OneFramework();
+
+    [GeneratedRegex(@"<TargetFrameworks>", RegexOptions.IgnoreCase)]
+    private static partial Regex Frameworks();
 
     [GeneratedRegex(@": error [A-Z]+\d+:")]
     private static partial Regex ErrorLine();
