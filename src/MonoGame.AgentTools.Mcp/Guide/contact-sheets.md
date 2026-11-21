@@ -14,13 +14,14 @@ smaller than a tile are enlarged by a whole factor so pixels stay crisp.
 ## Before and after
 
 To check a change, capture a baseline with a `name` before it (`name: "before"`), make the change, and
-capture again with `sheet: { against: "before" }`; contact_sheet takes `against` too. Each row shows the
+capture again with `sheet: { baseline: "before" }`; contact_sheet takes `baseline` too. Each row shows the
 same frame from both (A is the baseline, B the new capture) and a third tile with every changed pixel in
 red, brighter for larger changes, plus the percentage changed. The same build and arguments draw the same
-frames, so any red is a real difference: a faint opacity change still shows. Anything the game draws from
-wall-clock time or memory (an FPS counter, a memory readout) differs in every frame; crop it out. Both
-captures need the same fps and size; compare 6 frames by default, at most 12. Compare numbers by reading
-both summary.json files.
+frames, so any red is a real difference: a faint opacity change still shows. `diff: false` drops the third
+tile for larger A and B. The HUD (captured with `hud: true`) is left out of the comparison and shows in
+blue; anything else the game draws from wall-clock time or memory (its own FPS counter, say) differs in
+every frame, so crop it out. Both captures need the same fps and size; compare 6 frames by default, at
+most 12. Compare numbers by reading both summary.json files.
 
 Only saved frames can be used: capture with save `all` (default) or `every:N` first. Sheets are saved in
 the capture's `sheets/` folder and stay at most 1568 px wide, the size model clients keep without
@@ -31,7 +32,8 @@ downscaling.
 You can't watch an animation, but the user can. When they should judge motion (timing, feel, an A/B
 choice between two versions), make a GIF with the gif tool and give them its path: it plays on a
 double-click in Windows, in browsers and in chat apps. It takes the same `from`, `to`, `crop` and
-`against` as contact_sheet (against plays A beside B), plus `fps` (frames of game time per second, at
+`baseline` as contact_sheet (baseline plays A beside B; `diff: true` adds the changed pixels as a third
+panel, off by default since people judge motion best from A and B), plus `fps` (frames of game time per second, at
 most 50; 30 by default, and one that divides the capture's fps keeps spacing even), `speed` (below 1 is
 slow motion, useful for fast effects) and `width` per frame (640 by default). GIFs are saved in the
 capture's `gifs/` folder. Their 256 colors are dithered with a fixed pattern, so smooth gradients look

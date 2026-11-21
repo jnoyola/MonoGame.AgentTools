@@ -54,7 +54,7 @@ public static class AgentTools
         }
 
         if (commandLine.IsBatch)
-            CaptureRunner.RunAndExit(game, commandLine, setup);
+            CaptureRunner.RunAndExit(game, commandLine, setup, commandLine.Hud ? LiveMonitor.InstallHud(game, setup) : null);
         else
             LiveMonitor.Install(game, setup);
     }

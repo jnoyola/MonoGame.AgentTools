@@ -27,6 +27,7 @@ internal sealed class GameTools(Workspace workspace)
     private const string InputDescription = "Input to play: the script itself (lines like 'f60 Space down', 't1.5 MouseLeft down 640,360'; see guide topic 'input'), a path to an .input file, or the name of a capture or of a live session in .agenttools/sessions to replay its input.";
     private const string TimingDescription = "Frame timing: 'fixed' (default), 'real' (measured, as live play gets them; kept so the run can be replayed), a .timing file, or a capture's or session's name to replay its frame times. A replayed input's own timing is used unless this says otherwise.";
     private const string SizeDescription = "Backbuffer size 'WIDTHxHEIGHT', or 'native' for the game's own. Default 1280x720, the same on every machine.";
+    private const string HudDescription = "Draw the HUD into the frames, as the user sees it in play: to look at it, or at a game the user describes with it on. Its numbers are wall-clock measurements, so that area differs between runs; comparisons leave it out.";
     private const string JitNamesDescription = "Name the methods JIT-compiled during each hitch. Off by default: naming them allocates about 1 MB a run on another thread and slows the frames that compile.";
     private const string GameArgsDescription = "Extra arguments for the game itself, such as its own scenario or camera flags.";
     private const string NameDescription = "Output folder name under .agenttools/captures; a run of the same name is replaced. Named runs are kept until deleted, for comparing before and after a change. Unnamed ones ('<project>-<timestamp>') are pruned to the 10 most recent of each tool.";
@@ -60,7 +61,7 @@ internal sealed class GameTools(Workspace workspace)
         brief reading of summary.json (warm-up gates, frame-time percentiles, allocations, GC, memory growth, JIT,
         render metrics, hitches, custom metrics; detail 'full' returns the JSON itself) and a contact sheet of saved
         frames, labeled with frame number and game time: 12 frames across the run by default, or the time range,
-        count and crop given in sheet, or a frame-by-frame comparison with a baseline capture (sheet.against).
+        count and crop given in sheet, or a frame-by-frame comparison with a baseline capture (sheet.baseline).
         Frames run back to back, so take performance numbers from profile instead. Output is saved under
         .agenttools/captures/<name>; contact_sheet and gif make more from it without re-running.
         """)]
@@ -75,6 +76,7 @@ internal sealed class GameTools(Workspace workspace)
         [Description("Which frames to write as PNG: 'all' (default), 'none', 'every:N', or a list such as '1,30,60'. contact_sheet and gif can only use saved frames.")]
         string? save = null,
         [Description(JitNamesDescription)] bool jitNames = false,
+        [Description(HudDescription)] bool hud = false,
         [Description(GameArgsDescription)] string[]? gameArgs = null,
         [Description("The contact sheet to return: time range, frame count, columns and crop. Default: 12 frames across the whole run.")]
         SheetOptions? sheet = null,
@@ -85,7 +87,7 @@ internal sealed class GameTools(Workspace workspace)
         [Description(TimeoutDescription)] int timeoutSeconds = 300,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken cancellationToken = default) =>
-        RunAsync(RunKind.Capture, project, duration, fps, input, timing, size, save, jitNames, gameArgs, sheet, name, detail,
+        RunAsync(RunKind.Capture, project, duration, fps, input, timing, size, save, jitNames, hud, gameArgs, sheet, name, detail,
             configuration, framework, timeoutSeconds, progress, cancellationToken);
 
     [McpServerTool(Name = "profile", Destructive = false, Idempotent = false, OpenWorld = false)]
@@ -106,6 +108,7 @@ internal sealed class GameTools(Workspace workspace)
         [Description(TimingDescription)] string? timing = null,
         [Description(SizeDescription)] string? size = null,
         [Description(JitNamesDescription)] bool jitNames = false,
+        [Description(HudDescription)] bool hud = false,
         [Description(GameArgsDescription)] string[]? gameArgs = null,
         [Description(NameDescription)] string? name = null,
         [Description(DetailDescription)] string detail = "brief",
@@ -114,11 +117,11 @@ internal sealed class GameTools(Workspace workspace)
         [Description(TimeoutDescription)] int timeoutSeconds = 300,
         IProgress<ProgressNotificationValue>? progress = null,
         CancellationToken cancellationToken = default) =>
-        RunAsync(RunKind.Profile, project, duration, fps, input, timing, size, save: null, jitNames, gameArgs, sheet: null, name, detail,
+        RunAsync(RunKind.Profile, project, duration, fps, input, timing, size, save: null, jitNames, hud, gameArgs, sheet: null, name, detail,
             configuration, framework, timeoutSeconds, progress, cancellationToken);
 
     private async Task<CallToolResult> RunAsync(RunKind kind, string? project, string? duration, int? fps, string? input, string? timing,
-        string? size, string? save, bool jitNames, string[]? gameArgs, SheetOptions? sheet, string? name, string detail,
+        string? size, string? save, bool jitNames, bool hud, string[]? gameArgs, SheetOptions? sheet, string? name, string detail,
         string configuration, string? framework, int timeoutSeconds, IProgress<ProgressNotificationValue>? progress, CancellationToken cancellationToken)
     {
         var game = GameProject.Resolve(workspace.Root, project);
@@ -133,9 +136,9 @@ internal sealed class GameTools(Workspace workspace)
             _ => throw new ToolException($"detail must be 'brief' or 'full', got '{detail}'."),
         };
         var folder = Path.Combine(workspace.CapturesDirectory, name);
-        var baseline = sheet?.Against is { } against ? workspace.ResolveCapture(against) : null;
+        var baseline = sheet?.Baseline is { } compared ? workspace.ResolveCapture(compared) : null;
         if (baseline is not null && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(baseline)), folder, StringComparison.OrdinalIgnoreCase))
-            throw new ToolException("sheet.against is the capture being replaced; give this capture another name.");
+            throw new ToolException("sheet.baseline is the capture being replaced; give this capture another name.");
         var replay = ReplayInputs.Resolve(workspace, input, timing);
 
         framework = await game.ChooseFrameworkAsync(configuration, framework, cancellationToken).ConfigureAwait(false);
@@ -160,6 +163,8 @@ internal sealed class GameTools(Workspace workspace)
         Option(nameof(save), save);
         if (jitNames)
             arguments.Add(CommandLine.Flag(nameof(jitNames)));
+        if (hud)
+            arguments.Add(CommandLine.Flag(nameof(hud)));
         arguments.AddRange(replay.Arguments(output));
         arguments.AddRange(gameArgs ?? []);
 

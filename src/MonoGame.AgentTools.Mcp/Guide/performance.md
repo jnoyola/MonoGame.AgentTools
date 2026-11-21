@@ -18,6 +18,18 @@ Frame-time spread isn't a gate: uncapped games jitter by nature. Read `frameTime
 `hitches`, which lists slow frames with their likely cause (JIT, GC, allocation).
 
 Any game-thread allocation after the memory gate is a per-frame allocation worth fixing.
+
+Costs in MonoGame 3.8.5 itself, which every game hits. Fix them in the game, where they also hold in
+Release (the tools never apply fixes, so they measure the game that ships):
+- First key press in live play, about 7.5 KB: `KeyboardUtil` builds its key map in a static
+  constructor, and `Keyboard`'s internal `_keys` list starts empty. Before `Run`, call
+  `RuntimeHelpers.RunClassConstructor` on the `Microsoft.Xna.Framework.Input.KeyboardUtil` type and
+  `EnsureCapacity(8)` on `_keys`, both found by reflection and skipped if missing.
+- `SpriteBatch` grows its batch the first time a frame draws more than 256 sprites (61 KB): draw the
+  busiest frame's sprites once, invisibly, in `LoadContent`.
+- About 1.1 ms of JIT at frame 9999 (`SdlGamePlatform.RunLoop` promoted from its loop patchpoint):
+  `<TieredCompilationQuickJitForLoops>false</TieredCompilationQuickJitForLoops>` avoids it.
+- `GraphicsDevice.GetBackBufferData` allocates a row each call (5.1 KB at 1280 wide): not every frame.
 `allocations.otherThreadsBytes` is garbage made by other threads (audio, tasks, libraries).
 `allocations.captureBytes` is the capture's own work between frames (reading frames back and saving
 them). It's 0 except about 5 KB on the first frame, a one-time check of the readback against

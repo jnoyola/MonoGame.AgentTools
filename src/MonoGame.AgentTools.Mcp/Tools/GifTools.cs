@@ -19,7 +19,7 @@ internal sealed class GifTools(Workspace workspace)
         Makes an animated GIF from a capture's saved frames, for the user to watch: it plays on a
         double-click in Windows, in browsers and in chat apps. You can't see the animation yourself (use
         contact_sheet), so this returns only the file's path; offer it when the user should judge motion,
-        such as an A/B choice (against). Plays at game speed by default; speed below 1 is slow motion.
+        such as an A/B choice (baseline). Plays at game speed by default; speed below 1 is slow motion.
         Frames are labeled with frame number and game time.
         """)]
     public string Gif(
@@ -37,9 +37,13 @@ internal sealed class GifTools(Workspace workspace)
         int width = 640,
         [Description("Region of each frame to show, 'x,y,width,height' in frame pixels.")]
         string? crop = null,
-        [Description("A baseline capture to play beside this one (its name or folder): A on the left, this capture as B on the right. Both need the same fps and size.")]
-        string? against = null)
+        [Description("A capture to play beside this one (its name or folder): A on the left, this capture as B on the right. Both need the same fps and size.")]
+        string? baseline = null,
+        [Description("With baseline: add a third panel of the changed pixels in red, as contact_sheet shows them. Default false: people judge motion best from A and B alone.")]
+        bool diff = false)
     {
+        if (diff && baseline is null)
+            throw new ToolException("diff needs a baseline to compare with.");
         if (fps <= 0 || fps > MaxFps)
             throw new ToolException($"fps must be above 0 and at most {MaxFps}: GIF delays are in hundredths of a second and browsers slow down shorter ones.");
         if (speed <= 0)
@@ -52,14 +56,14 @@ internal sealed class GifTools(Workspace workspace)
         var saved = SheetTools.InRange(workspace.DisplayCapture(folder), SheetTools.SavedFrames(Path.Combine(folder, "frames"), captureFps),
             new SheetOptions { From = from, To = to });
 
-        string? baseline = null;
+        string? baselineFolder = null;
         Dictionary<int, SheetTile>? baselineFrames = null;
-        if (against is not null)
+        if (baseline is not null)
         {
-            baseline = workspace.ResolveCapture(against);
-            if (SheetTools.ReadFps(baseline) != captureFps)
+            baselineFolder = workspace.ResolveCapture(baseline);
+            if (SheetTools.ReadFps(baselineFolder) != captureFps)
                 throw new ToolException("The captures ran at different fps, so the same frame number isn't the same moment.");
-            baselineFrames = SheetTools.SavedFrames(Path.Combine(baseline, "frames"), captureFps).ToDictionary(t => t.Frame);
+            baselineFrames = SheetTools.SavedFrames(Path.Combine(baselineFolder, "frames"), captureFps).ToDictionary(t => t.Frame);
             saved = saved.Where(t => baselineFrames.ContainsKey(t.Frame)).ToList();
             if (saved.Count == 0)
                 throw new ToolException("The captures have no saved frames in common in that range; capture both with the same save option.");
@@ -73,8 +77,10 @@ internal sealed class GifTools(Workspace workspace)
             throw new ToolException($"crop {region.X},{region.Y},{region.Width},{region.Height} is outside the {first.Width}x{first.Height} frame.");
         var panelWidth = Math.Min(width, region.Width);
         var panelHeight = Math.Max(1, (int)Math.Round(region.Height * (double)panelWidth / region.Width));
-        var panels = baselineFrames is null ? 1 : 2;
+        var panels = baselineFrames is null ? 1 : diff ? 3 : 2;
         var output = new RgbImage(panels * panelWidth + (panels - 1) * Gap, panelHeight);
+        var hud = baselineFolder is null ? null : Crop.Union(SheetTools.ReadHud(baselineFolder), SheetTools.ReadHud(folder));
+        var change = diff ? new byte[region.Width * region.Height] : null;
 
         RgbImage Compose(int i)
         {
@@ -88,6 +94,12 @@ internal sealed class GifTools(Workspace workspace)
                 ContactSheet.DrawLabel(output, Font.Value, ContactSheet.Label("A ", a), 0, 0);
                 Resample(image, region, output, panelWidth + Gap, panelWidth, panelHeight);
                 ContactSheet.DrawLabel(output, Font.Value, ContactSheet.Label("B ", tile), panelWidth + Gap, 0);
+                if (change is not null)
+                {
+                    var changed = ContactSheet.Diff(ContactSheet.Load(a, first), image, region, change, hud);
+                    ResampleDiff(image, change, region, hud, output, 2 * (panelWidth + Gap), panelWidth, panelHeight);
+                    ContactSheet.DrawLabel(output, Font.Value, ContactSheet.ChangedLabel(changed), 2 * (panelWidth + Gap), 0);
+                }
             }
             else
             {
@@ -107,7 +119,7 @@ internal sealed class GifTools(Workspace workspace)
             + (speed != 1 ? string.Create(CultureInfo.InvariantCulture, $"_x{speed:0.###}") : "")
             + (crop is null ? "" : string.Create(CultureInfo.InvariantCulture, $"_crop{region.X}-{region.Y}-{region.Width}-{region.Height}"))
             + string.Create(CultureInfo.InvariantCulture, $"_w{panelWidth}");
-        var name = (baseline is null ? "" : $"vs-{Path.GetFileName(baseline)}_")
+        var name = (baselineFolder is null ? "" : $"vs-{Path.GetFileName(baselineFolder)}_{(diff ? "diff_" : "")}")
             + string.Create(CultureInfo.InvariantCulture, $"f{frames[0].Frame}-f{frames[^1].Frame}") + suffix + ".gif";
         var path = Path.Combine(folder, "gifs", name);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -120,7 +132,9 @@ internal sealed class GifTools(Workspace workspace)
         }
 
         var seconds = delays.Sum() / 100.0;
-        var comparison = baseline is null ? "" : $" A = {workspace.DisplayCapture(baseline)}, B = {workspace.DisplayCapture(folder)}.";
+        var comparison = baselineFolder is null ? ""
+            : $" A = {workspace.DisplayCapture(baselineFolder)}, B = {workspace.DisplayCapture(folder)}{(diff ? ", then the changed pixels in red" : "")}."
+              + (hud is null ? "" : " The HUD's area isn't compared.");
         return string.Create(CultureInfo.InvariantCulture,
             $"GIF {workspace.Display(path)} ({output.Width}x{output.Height}, {frames.Count} frames f{frames[0].Frame}-f{frames[^1].Frame}, plays in {seconds:0.##} s, {new FileInfo(path).Length / 1024.0:0} KB).{comparison} Give the user this path to open.");
     }
@@ -163,6 +177,42 @@ internal sealed class GifTools(Workspace workspace)
             shown += delays[i];
         }
         return delays;
+    }
+
+    /// <summary>
+    /// The changed pixels of <paramref name="region"/> as a panel, as contact_sheet draws them: red where any
+    /// pixel in the source block changed, brighter for larger changes, so a one-pixel change survives
+    /// shrinking; the HUD's area in <see cref="ContactSheet.IgnoredColor"/>; elsewhere B dimmed, for context.
+    /// </summary>
+    private static void ResampleDiff(RgbImage source, byte[] change, Crop region, Crop? ignore, RgbImage target, int originX, int width, int height)
+    {
+        const int minimumRed = 110;
+        for (int y = 0; y < height; ++y)
+        {
+            var y0 = y * region.Height / height;
+            var y1 = Math.Max(y0 + 1, (y + 1) * region.Height / height);
+            for (int x = 0; x < width; ++x)
+            {
+                var x0 = x * region.Width / width;
+                var x1 = Math.Max(x0 + 1, (x + 1) * region.Width / width);
+                int level = 0, luma = 0;
+                for (int sy = y0; sy < y1; ++sy)
+                {
+                    for (int sx = x0, o = ((region.Y + sy) * source.Width + region.X + x0) * 3; sx < x1; ++sx, o += 3)
+                    {
+                        level = Math.Max(level, change[sy * region.Width + sx]);
+                        luma += (source.Pixels[o] * 77 + source.Pixels[o + 1] * 150 + source.Pixels[o + 2] * 29) >> 8;
+                    }
+                }
+                var d = (y * target.Width + originX + x) * 3;
+                if (level == 0 && ignore is { } skip && skip.Contains(region.X + x0, region.Y + y0))
+                    (target.Pixels[d], target.Pixels[d + 1], target.Pixels[d + 2]) = ContactSheet.IgnoredColor;
+                else if (level > 0)
+                    (target.Pixels[d], target.Pixels[d + 1], target.Pixels[d + 2]) = ((byte)(minimumRed + level * (255 - minimumRed) / 255), (byte)0, (byte)0);
+                else
+                    target.Pixels.AsSpan(d, 3).Fill((byte)(luma / ((y1 - y0) * (x1 - x0)) / 3));
+            }
+        }
     }
 
     /// <summary>Area-averages <paramref name="region"/> of <paramref name="source"/> into a panel of <paramref name="target"/>.</summary>

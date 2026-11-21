@@ -9,7 +9,7 @@ play it, with the HUD to see the measurements and every session recorded for the
 AgentTools.Attach(game, args, new() { ShowHud = true });
 ```
 
-<!-- TODO: images/hud.png, a screenshot of a game with the HUD on. -->
+![A visual-effects game with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game's own metrics](images/hud.png)
 
 The HUD shows, in the top-right corner:
 
@@ -23,8 +23,9 @@ The HUD shows, in the top-right corner:
 
 Yellow and red mark what needs attention. Backtick (`` ` ``) toggles it, whether `ShowHud` is on or not.
 The HUD's own drawing, allocations and JIT are left out of the measurements, and it allocates nothing per
-frame. `ShowHud` applies to live play only: captures and profiles never draw the HUD, since it shows
-wall-clock values that would make frames differ between runs.
+frame. `ShowHud` applies to live play only. A capture or profile draws the HUD only when asked
+(`--agenttools-hud`, or `hud` in the MCP tools), since its wall-clock values make that area differ
+between runs; comparisons leave the area out.
 
 ## Sessions
 

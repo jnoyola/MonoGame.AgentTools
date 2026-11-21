@@ -24,7 +24,7 @@ public class OptionsTests
     {
         var options = CommandLineOptions.Parse([
             "--agenttools-capture", "out", "--agenttools-duration", "2.5s", "--agenttools-fps", "30",
-            "--agenttools-size", "640x360", "--agenttools-save", "every:5", "--agenttools-jit-names"]);
+            "--agenttools-size", "640x360", "--agenttools-save", "every:5", "--agenttools-jit-names", "--agenttools-hud"]);
 
         Assert.Equal(RunMode.Capture, options.Mode);
         Assert.Equal(Path.GetFullPath("out"), options.OutputDirectory);
@@ -34,6 +34,8 @@ public class OptionsTests
         Assert.True(options.Save.Includes(10));
         Assert.False(options.Save.Includes(11));
         Assert.True(options.JitNames);
+        Assert.True(options.Hud);
+        Assert.False(CommandLineOptions.Parse(["--agenttools-capture", "out"]).Hud);
     }
 
     [Fact]

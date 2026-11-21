@@ -121,6 +121,22 @@ public sealed class InputCaptureTests : IDisposable
             "Runs a game: needs a GPU and a desktop session (checked on Windows).");
 
     [Fact]
+    public void A_capture_with_the_hud_draws_it_and_says_where()
+    {
+        SkipWithoutDesktop();
+        Run(Probe, "--agenttools-capture", Path.Combine(_folder, "hud"), "--agenttools-duration", "10f", "--agenttools-save", "10", "--agenttools-hud");
+        Run(Probe, "--agenttools-capture", Path.Combine(_folder, "plain"), "--agenttools-duration", "10f", "--agenttools-save", "10");
+
+        var region = Summary("hud").GetProperty("hud").GetProperty("region").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        Assert.Equal(4, region.Length);
+        Assert.True(region[0] > 640 && region[2] > 100 && region[3] > 100, $"region {string.Join(',', region)}");
+        Assert.Contains(Summary("hud").GetProperty("notes").EnumerateArray(), n => n.GetString()!.StartsWith("The HUD is drawn", StringComparison.Ordinal));
+        Assert.False(Summary("plain").TryGetProperty("hud", out _));
+        // The probe draws nothing, so the HUD is the only difference between the frames.
+        Assert.NotEqual(File.ReadAllBytes(Path.Combine(_folder, "plain", "frames", "f0010.png")), File.ReadAllBytes(Path.Combine(_folder, "hud", "frames", "f0010.png")));
+    }
+
+    [Fact]
     public void Live_play_records_each_session_under_the_repository_root()
     {
         SkipWithoutDesktop();

@@ -41,6 +41,6 @@ variable-step game, and `summary.json`. The 10 most recent are kept; a renamed f
 List the folder for the newest. Pass its name as `input` to replay it; its timing comes with it. If the
 game is still open, the last second may not be written yet; ask the user to quit it first. To check
 a fix against a moment the user played, capture with that input before and after, and compare with
-`sheet.against`.
+`sheet.baseline`.
 
 A replay matches only if the game is deterministic: seeded randomness, time from `GameTime`.

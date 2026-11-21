@@ -105,7 +105,7 @@ screen and how it moves:
 its frame and game time. The ground cracks in two jolts, then erupts: a dust ring rolls out, and rocks
 are thrown up and land.*
 
-`contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `against`,
+`contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `baseline`,
 it compares two captures: each row shows the same frame from both and every pixel that changed, in red.
 Captures are deterministic, so any red is a real difference. Here A is a floaty version of the slam,
 with half the gravity and a slower launch to the same height, and B is the fix. Only the rocks changed:
@@ -114,7 +114,7 @@ by 1.25 s, B's have landed while A's still hang in the air. You see the same com
 
 ![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
 
-*`contact_sheet` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.9, "to": 1.6,
+*`contact_sheet` with `{ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.9, "to": 1.6,
 "count": 3, "crop": "240,40,800,600" }`, after one `capture` of each version. Each row is A, B, then
 their changed pixels.*
 
@@ -130,7 +130,7 @@ Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control i
 and what it does. `input` also takes a file, or a capture's name to replay its input after a fix:
 
 ```json
-{ "input": "jump", "name": "jump-after-fix", "sheet": { "against": "jump" } }
+{ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } }
 ```
 
 It replays [the sessions you play](#recording) the same way, frame for frame. Your game keeps calling
@@ -173,17 +173,19 @@ With `ShowHud`, the HUD shows the agent's measurements in the corner while you p
 allocations, GCs, memory, GPU resources, JIT, the warm-up gates, draw calls and your custom metrics.
 Backtick toggles it. Each session's stats are kept too; see [Live play](docs/live.md).
 
-<!-- TODO: docs/images/hud.png, a screenshot of a game with the HUD on. -->
+![The Earth Slam with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game's particle count](docs/images/hud.png)
+
+*The HUD over the Earth Slam, as you see it in play. The agent can capture it too, with `hud: true`.*
 
 ### GIFs
 
 When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
-`against` plays two versions side by side, the same comparison the agent read as a
+`baseline` plays two versions side by side, the same comparison the agent read as a
 [contact sheet](#contact-sheets):
 
 ![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
 
-*`gif` with `{ "capture": "slam-heavy", "against": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
+*`gif` with `{ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
 "240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
 
 ### Recording
@@ -241,6 +243,8 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 - [Performance](docs/performance.md): warm-up gates, allocations, memory growth and hitches
 - [Input and replay](docs/input.md): input scripts, recording, and frame timing
 - [Live play](docs/live.md): the HUD and recorded sessions
+- [MonoGame findings](docs/monogame-findings.md): costs in MonoGame itself that every game hits, and
+  the fix for each
 - [Design](docs/design.md): how it works and why, with the precedents it follows
 
 Agents get the same guidance from the server's `guide` tool.
