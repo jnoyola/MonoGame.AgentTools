@@ -81,8 +81,10 @@ public sealed class InputCaptureTests : IDisposable
         var script = Path.Combine(_folder, "script.input");
         File.WriteAllText(script, Script);
 
-        Capture("real", "--variable", "--agenttools-input", script, "--agenttools-timing", "real", "--agenttools-realtime",
+        Capture("real", "--variable", "--agenttools-input", script, "--agenttools-timing", "real",
             "--agenttools-record", Path.Combine(_folder, "vrec"));
+        // Paced to the step like vsync: unpaced, the probe's frames measure under 1 ms.
+        Assert.InRange(Metrics("real").Skip(2).Average(f => f["dt.ms"]), 12, 30);
         Assert.StartsWith("# Input recorded", File.ReadAllText(Path.Combine(_folder, "vrec.input")), StringComparison.Ordinal);
         Assert.Contains("\nstep variable\n", File.ReadAllText(Path.Combine(_folder, "vrec.input")), StringComparison.Ordinal);
         Assert.True(File.Exists(Path.Combine(_folder, "vrec.timing")));

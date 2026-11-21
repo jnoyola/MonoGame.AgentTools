@@ -262,7 +262,8 @@ dotnet format --verify-no-changes
 ```
 
 CI runs the same three on Windows, Linux and macOS, in Debug and Release, and they must pass before a
-pull request can merge.
+pull request can merge. What they can't cover yet, such as tests that need a GPU, is checked by hand
+before each release: see [Manual tests](docs/manual-tests.md).
 
 ## License
 
