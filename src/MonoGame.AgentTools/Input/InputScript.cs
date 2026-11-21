@@ -148,28 +148,28 @@ internal sealed class InputScript
         switch (control.Kind)
         {
             case ControlKind.MousePosition:
-            {
-                var (x, y) = Pair(first, error, "Mouse x,y");
-                return new ScriptEvent(line, frame, ticks, control, InputAction.Set, Math.Round(x), Math.Round(y));
-            }
+                {
+                    var (x, y) = Pair(first, error, "Mouse x,y");
+                    return new ScriptEvent(line, frame, ticks, control, InputAction.Set, Math.Round(x), Math.Round(y));
+                }
             case ControlKind.MouseWheel or ControlKind.MouseWheelHorizontal:
                 return new ScriptEvent(line, frame, ticks, control, InputAction.Set, Number(first, error, $"{control} takes a number of notches, such as +1 or -2"));
             case ControlKind.PadStick:
-            {
-                if (first is "down" or "up")
-                    throw error($"{control} takes x,y; the click is {control}Button.");
-                var (x, y) = Pair(first, error, $"{control} x,y");
-                if (Math.Abs(x) > 1 || Math.Abs(y) > 1)
-                    throw error($"{control} values are from -1 to 1.");
-                return new ScriptEvent(line, frame, ticks, control, InputAction.Set, x, y);
-            }
+                {
+                    if (first is "down" or "up")
+                        throw error($"{control} takes x,y; the click is {control}Button.");
+                    var (x, y) = Pair(first, error, $"{control} x,y");
+                    if (Math.Abs(x) > 1 || Math.Abs(y) > 1)
+                        throw error($"{control} values are from -1 to 1.");
+                    return new ScriptEvent(line, frame, ticks, control, InputAction.Set, x, y);
+                }
             default:
-            {
-                var value = Number(first, error, $"{control} takes a value from 0 to 1");
-                if (value is < 0 or > 1)
-                    throw error($"{control} values are from 0 to 1.");
-                return new ScriptEvent(line, frame, ticks, control, InputAction.Set, value);
-            }
+                {
+                    var value = Number(first, error, $"{control} takes a value from 0 to 1");
+                    if (value is < 0 or > 1)
+                        throw error($"{control} values are from 0 to 1.");
+                    return new ScriptEvent(line, frame, ticks, control, InputAction.Set, value);
+                }
         }
     }
 
