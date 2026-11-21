@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace MonoGame.AgentTools.Mcp.Games;
 
@@ -67,14 +69,37 @@ internal sealed partial class GameProject
     public async Task<string?> ChooseFrameworkAsync(string configuration, string? framework, CancellationToken cancellationToken)
     {
         var project = await File.ReadAllTextAsync(Path, cancellationToken).ConfigureAwait(false);
-        if (OneFramework().Match(project) is { Success: true } one && !Frameworks().IsMatch(project)
-            && (framework is null || framework.Equals(one.Groups[1].Value, StringComparison.OrdinalIgnoreCase)))
+        if (StatedFramework(project) is { } one && (framework is null || framework.Equals(one, StringComparison.OrdinalIgnoreCase)))
             return null;
         string[] args = ["msbuild", Path, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetFramework", "-getProperty:TargetFrameworks"];
         var result = await ProcessRunner.RunAsync("dotnet", args, workingDirectory: null, TimeSpan.FromMinutes(2), cancellationToken).ConfigureAwait(false);
         if (result.TimedOut || result.ExitCode != 0)
             throw new ToolException($"Couldn't read {Name}'s target frameworks (exit code {result.ExitCode}):\n{result.Tail()}");
         return ChooseFramework(result.Output, framework);
+    }
+
+    /// <summary>
+    /// The one framework the project file sets unconditionally, when it sets no other: then nothing an
+    /// import adds can matter, since a project's own properties are set after Directory.Build.props.
+    /// Null when in doubt (a condition, a property reference, unreadable XML), so the project is evaluated.
+    /// </summary>
+    internal static string? StatedFramework(string projectXml)
+    {
+        XDocument xml;
+        try
+        {
+            xml = XDocument.Parse(projectXml);
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+        var elements = xml.Descendants().Where(e => e.Name.LocalName is "TargetFramework" or "TargetFrameworks").ToList();
+        if (elements is not [{ Name.LocalName: "TargetFramework" } one]
+            || one.Attribute("Condition") is not null || one.Parent?.Attribute("Condition") is not null)
+            return null;
+        var value = one.Value.Trim();
+        return value.Length > 0 && !value.Contains('$', StringComparison.Ordinal) && !value.Contains(';', StringComparison.Ordinal) ? value : null;
     }
 
     internal static string? ChooseFramework(string evaluationOutput, string? framework)
@@ -209,12 +234,6 @@ internal sealed partial class GameProject
 
     [GeneratedRegex(@"<IsTestProject>\s*true\s*</IsTestProject>|Microsoft\.NET\.Test\.Sdk|""xunit|""NUnit|""MSTest", RegexOptions.IgnoreCase)]
     private static partial Regex TestProject();
-
-    [GeneratedRegex(@"<TargetFramework>\s*([^<]*?)\s*</TargetFramework>", RegexOptions.IgnoreCase)]
-    private static partial Regex OneFramework();
-
-    [GeneratedRegex(@"<TargetFrameworks>", RegexOptions.IgnoreCase)]
-    private static partial Regex Frameworks();
 
     [GeneratedRegex(@": error [A-Z]+\d+:")]
     private static partial Regex ErrorLine();

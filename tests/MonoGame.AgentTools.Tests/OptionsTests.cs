@@ -68,6 +68,20 @@ public class OptionsTests
         Assert.Contains("such as 3s or 150f", e.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("1000001f", null)]
+    [InlineData("2147483647f", null)]
+    [InlineData("99999999999999s", null)]
+    [InlineData("3601s", null)]
+    [InlineData("3600s", "300")]
+    public void Duration_has_an_upper_limit(string duration, string? fps)
+    {
+        string[] args = ["--agenttools-capture", "out", "--agenttools-duration", duration, .. fps is null ? Array.Empty<string>() : ["--agenttools-fps", fps]];
+        var e = Assert.Throws<ArgumentException>(() => CommandLineOptions.Parse(args));
+        Assert.Contains("1000000", e.Message, StringComparison.Ordinal);
+        Assert.Equal(RunLength.MaxFrames, CommandLineOptions.Parse(["--agenttools-capture", "out", "--agenttools-duration", "1000000f"]).Duration!.Value.Frames);
+    }
+
     [Fact]
     public void Native_keeps_the_game_size() =>
         Assert.Null(CommandLineOptions.Parse(["--agenttools-capture", "out", "--agenttools-size", "native"]).Size);
@@ -111,13 +125,36 @@ public class OptionsTests
     }
 
     [Theory]
-    [InlineData("MyGame-20261121-093000", true)]
-    [InlineData("My-Game-20261121-093000-2", true)]
-    [InlineData("boss-fight", false)]
-    [InlineData("MyGame-20261121", false)]
-    [InlineData("-20261121-093000", false)]
-    public void Only_sessions_named_automatically_are_pruned(string name, bool automatic) =>
-        Assert.Equal(automatic, Sessions.IsAutomaticName(name));
+    [InlineData("MyGame-20261121-093000", "MyGame", true)]
+    [InlineData("My-Game-20261121-093000-2", "My-Game", true)]
+    [InlineData("My-Game-20261121-093000", "My", false)]
+    [InlineData("OtherGame-20261121-093000", "MyGame", false)]
+    [InlineData("boss-fight", "MyGame", false)]
+    [InlineData("MyGame-20261121", "MyGame", false)]
+    [InlineData("MyGame-", "MyGame", false)]
+    public void Only_this_games_sessions_named_automatically_are_pruned(string name, string game, bool automatic) =>
+        Assert.Equal(automatic, Sessions.IsAutomaticName(name, game));
+
+    [Fact]
+    public void Each_game_keeps_its_own_sessions()
+    {
+        var repository = Directory.CreateTempSubdirectory("agenttools-sessions-").FullName;
+        try
+        {
+            var start = new DateTime(2026, 11, 21, 9, 0, 0);
+            var mine = Sessions.Create(repository, "GameA", start)!;
+            for (var i = 1; i <= Sessions.Kept + 2; i++)
+                Assert.NotNull(Sessions.Create(repository, "GameB", start.AddMinutes(i)));
+
+            Assert.True(Directory.Exists(mine));
+            var names = Directory.GetDirectories(Path.GetDirectoryName(mine)!).Select(Path.GetFileName).ToList();
+            Assert.Equal(Sessions.Kept, names.Count(n => n!.StartsWith("GameB-", StringComparison.Ordinal)));
+        }
+        finally
+        {
+            Directory.Delete(repository, recursive: true);
+        }
+    }
 
     [Fact]
     public void Sessions_started_in_the_same_second_get_a_folder_each()

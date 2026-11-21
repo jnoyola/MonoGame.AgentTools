@@ -40,7 +40,13 @@ internal static class TimingFile
     /// <summary>Reads every frame's elapsed ticks. A partial last frame (a recording cut short) is dropped.</summary>
     public static long[] Read(string path)
     {
-        var bytes = File.ReadAllBytes(path);
+        // Shared, as for input: the recording may still be open in the game writing it.
+        byte[] bytes;
+        using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+        {
+            bytes = new byte[file.Length];
+            file.ReadExactly(bytes);
+        }
         if (bytes.Length < HeaderSize || !bytes.AsSpan(0, 4).SequenceEqual(Magic))
             throw new InvalidDataException($"{path} isn't a .timing file.");
         var version = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(4));

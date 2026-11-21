@@ -62,15 +62,28 @@ internal enum RunMode
 /// <summary>A run's length: game seconds (<c>3s</c>) or frames (<c>150f</c>).</summary>
 internal readonly record struct RunLength(double? Seconds, int? Frames)
 {
+    /// <summary>
+    /// The longest run: every frame's measurements are kept in memory (about 150 MB at the frame limit),
+    /// and longer play is what live sessions record.
+    /// </summary>
+    public const int MaxFrames = 1_000_000;
+    public const double MaxSeconds = 3600;
+
     public static RunLength Parse(string text, string option)
     {
         var unit = text.Length > 0 ? char.ToLowerInvariant(text[^1]) : '\0';
         var number = text.Length > 0 ? text[..^1] : "";
+        RunLength? length = null;
         if (unit == 'f' && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var frames) && frames > 0)
-            return new RunLength(null, frames);
-        if (unit == 's' && double.TryParse(number, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
-            return new RunLength(seconds, null);
-        throw new ArgumentException($"{option} expects a length with its unit, such as 3s or 150f; got '{text}'.");
+            length = new RunLength(null, frames);
+        else if (unit == 's' && double.TryParse(number, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
+            length = new RunLength(seconds, null);
+        if (length is null)
+            throw new ArgumentException($"{option} expects a length with its unit, such as 3s or 150f; got '{text}'.");
+        if (length.Value.Frames > MaxFrames || length.Value.Seconds > MaxSeconds)
+            throw new ArgumentException(string.Create(CultureInfo.InvariantCulture,
+                $"{option} is at most {MaxSeconds:0}s or {MaxFrames}f; got '{text}'. Live play records sessions of any length."));
+        return length.Value;
     }
 }
 
@@ -134,8 +147,7 @@ internal sealed record CommandLineOptions
             }
             options = name switch
             {
-                "capture" => Enter(options, RunMode.Capture, Value()),
-                "profile" => Enter(options, RunMode.Profile, Value()),
+                _ when Entries.Contains(name) => Enter(options, Enum.Parse<RunMode>(name, ignoreCase: true), Value()),
                 "duration" => options with { Duration = RunLength.Parse(Value(), arg) },
                 "fps" => options with { Fps = FrameSelection.ParsePositiveInt(Value(), arg) },
                 "size" => options with { Size = ParseSize(Value(), arg) },
@@ -150,6 +162,9 @@ internal sealed record CommandLineOptions
         }
         if (options.Mode == RunMode.Live && given.Count > 0)
             throw new ArgumentException($"{given[0]} needs an entry flag: {Prefix}capture <dir> or {Prefix}profile <dir>. Without one the game runs live.");
+        if (options is { Duration.Seconds: double seconds, Fps: int fps } && seconds * fps > RunLength.MaxFrames)
+            throw new ArgumentException(string.Create(CultureInfo.InvariantCulture,
+                $"{Prefix}duration is {seconds * fps:0} frames at {fps} fps; the most is {RunLength.MaxFrames}."));
         if (options.Mode == RunMode.Profile)
         {
             if (given.Contains(Prefix + "save"))

@@ -38,7 +38,8 @@ timing comes with it unless `timing` says otherwise.
 Sessions: every time the user plays (a Debug build run without capture or profile), the game records
 what it read to `.agenttools/sessions/<Game>-<yyyyMMdd-HHmmss>/`: `session.input`, `session.timing` for a
 variable-step game, and `summary.json`. The 10 most recent are kept; a renamed folder is kept for good.
-List the folder for the newest. Pass its name as `input` to replay it; its timing comes with it. To check
+List the folder for the newest. Pass its name as `input` to replay it; its timing comes with it. If the
+game is still open, the last second may not be written yet; ask the user to quit it first. To check
 a fix against a moment the user played, capture with that input before and after, and compare with
 `sheet.against`.
 

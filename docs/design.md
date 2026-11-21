@@ -835,7 +835,8 @@ The options grew one flag at a time, and two runs needed several flags together:
   the recorder since.
 - **The `.timing` pairing rule lives in the library only.** The server passes files (a capture's or
   session's `.input`, or a script written into the new folder) and the game pairs the `.timing` beside
-  it. A run can't replay the capture its name replaces, since the server clears that folder first.
+  it. A capture re-run with its own input gets it back: the server reads the files before clearing the
+  folder and writes them back after, at the paths the game was given.
 - **A game with several target frameworks runs the first listed**, as Visual Studio's debug target
   defaults to; `framework` picks another (`dotnet run -f`). `dotnet run` itself refuses to guess, but an
   agent is better served by a default it can change, and the result names the framework that ran.

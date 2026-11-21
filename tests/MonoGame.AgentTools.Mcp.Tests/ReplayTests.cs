@@ -54,15 +54,19 @@ public sealed class ReplayTests : IDisposable
     }
 
     [Fact]
-    public void Replaying_into_the_folder_being_replaced_is_refused()
+    public void A_capture_rerun_with_its_own_input_gets_it_back()
     {
         var capture = Directory.CreateDirectory(Path.Combine(_workspace.CapturesDirectory, "jump")).FullName;
         File.WriteAllText(Path.Combine(capture, "capture.input"), "f1 A down");
         var replay = ReplayInputs.Resolve(_workspace, "jump", null);
 
-        replay.CheckNotIn(Path.Combine(_workspace.CapturesDirectory, "jump-2"), "jump-2");
-        var error = Assert.Throws<ToolException>(() => replay.CheckNotIn(capture, "jump"));
-        Assert.Contains("give this run another name", error.Message, StringComparison.Ordinal);
+        Assert.Empty(replay.Hold(Path.Combine(_workspace.CapturesDirectory, "jump-2")));
+        var held = replay.Hold(capture);
+        _workspace.PrepareCapture("jump");
+        Assert.False(File.Exists(replay.InputPath));
+        ReplayInputs.Restore(held);
+
+        Assert.Equal("f1 A down", File.ReadAllText(replay.InputPath!));
     }
 
     [Fact]

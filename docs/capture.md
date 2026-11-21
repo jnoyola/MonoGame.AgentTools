@@ -43,7 +43,7 @@ are an error.
 
 | Option | Default | |
 |---|---|---|
-| `--agenttools-duration 3s\|150f` | capture `1s`, profile `8s` | Game seconds or frames, with the unit. With input, at least to 1 s after its last event; with replayed timing, its length |
+| `--agenttools-duration 3s\|150f` | capture `1s`, profile `8s` | Game seconds or frames, with the unit. With input, at least to 1 s after its last event; with replayed timing, its length. At most `3600s` or `1000000f` |
 | `--agenttools-input <file>` | | An input script to play ([Input and replay](input.md)) |
 | `--agenttools-timing fixed\|real\|<file>` | `fixed` | Frame timing: even steps, measured, or replayed from a `.timing` file (one beside the input is used unless this says otherwise) |
 | `--agenttools-fps <n>` | the game's step | Fixed steps per second, overriding `TargetElapsedTime` |

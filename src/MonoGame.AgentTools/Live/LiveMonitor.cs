@@ -81,14 +81,14 @@ internal sealed class LiveMonitor : DrawableGameComponent
         AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.FlushFinal();
         game.Exiting += (_, _) =>
         {
-            recorder.Dispose();
+            // Quitting must never crash because of the tools, whatever went wrong; the input is already on disk.
             try
             {
+                recorder.Dispose();
                 monitor.WriteSession(folder);
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            catch (Exception e)
             {
-                // Quitting must not crash; the recording is already on disk.
                 Console.Error.WriteLine($"MonoGame.AgentTools: this session's stats weren't saved: {e.Message}");
             }
         };
@@ -280,13 +280,14 @@ internal sealed class LiveMonitor : DrawableGameComponent
         }
         var wall = _wall.Elapsed.TotalSeconds;
         _warmup.Finish(wall);
-        var pp = GraphicsDevice.PresentationParameters;
+        // Null when the game quits before its device exists.
+        var pp = Game.GraphicsDevice?.PresentationParameters;
         var info = new ReportInfo
         {
             Mode = "live",
             Game = Game.GetType().FullName ?? Game.GetType().Name,
-            Width = pp.BackBufferWidth,
-            Height = pp.BackBufferHeight,
+            Width = pp?.BackBufferWidth ?? 0,
+            Height = pp?.BackBufferHeight ?? 0,
             WallSeconds = wall,
             FrameTimeBasis = $"wall time between frames (last {Capacity} frames kept)",
             CustomMetricNames = _metrics.Select(p => p.Name).ToArray(),

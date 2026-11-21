@@ -137,15 +137,17 @@ internal sealed class GameTools(Workspace workspace)
         if (baseline is not null && string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(baseline)), folder, StringComparison.OrdinalIgnoreCase))
             throw new ToolException("sheet.against is the capture being replaced; give this capture another name.");
         var replay = ReplayInputs.Resolve(workspace, input, timing);
-        replay.CheckNotIn(folder, name);
 
         framework = await game.ChooseFrameworkAsync(configuration, framework, cancellationToken).ConfigureAwait(false);
         var built = framework is null ? game.Name : $"{game.Name} ({framework})";
         progress?.Report(new ProgressNotificationValue { Progress = 0, Total = 2, Message = $"Building {built}, {configuration}" });
         var run = await game.BuildAsync(configuration, framework, cancellationToken).ConfigureAwait(false);
 
-        // What this run reads survives the pruning that makes room for it.
+        // What this run reads survives the pruning that makes room for it, and a capture re-run with its
+        // own input gets it back in the emptied folder, where the game keeps its input anyway.
+        var held = replay.Hold(folder);
         var output = workspace.PrepareCapture(name, automaticName ? kind.Entry : null, baseline is null ? replay.Sources : replay.Sources.Append(baseline));
+        ReplayInputs.Restore(held);
         var arguments = new List<string> { CommandLine.Prefix + kind.Entry, output };
         void Option(string parameter, object? value)
         {

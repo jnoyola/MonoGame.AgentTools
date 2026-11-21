@@ -9,6 +9,31 @@ public class InputTests
 {
     private const long Step = 166_667;   // MonoGame's default TargetElapsedTime
 
+    [Fact]
+    public void A_recording_still_being_written_can_be_read()
+    {
+        var folder = Directory.CreateTempSubdirectory("agenttools-shared-").FullName;
+        try
+        {
+            var input = Path.Combine(folder, "session.input");
+            var timing = Path.Combine(folder, "session.timing");
+            TimingFile.Write(timing, [Step, Step]);
+            using (var inputWriter = new StreamedFile(input))
+            using (new FileStream(timing, FileMode.Open, FileAccess.Write, FileShare.Read))
+            {
+                inputWriter.Write("f1 Space down\n"u8);
+                inputWriter.FlushFinal();
+
+                Assert.Single(InputScript.Load(input).Events);
+                Assert.Equal([Step, Step], TimingFile.Read(timing));
+            }
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private sealed class Sink : IInputSink
     {
         public List<(int Frame, string Event)> Applied { get; } = [];
