@@ -871,6 +871,23 @@ The options grew one flag at a time, and two runs needed several flags together:
   decal's edge softened) A and B look alike and the red finds it. So the tools tell agents to turn
   `diff` on when the sheet reports a small fraction changed but not none.
 
+## Checks between the agent, the server and the game (v0.4)
+
+- **Unknown arguments are an error.** The SDK binds a tool's arguments by name and drops the rest, so
+  a misspelled or renamed parameter (`frames` for `duration`, `against` for `baseline`) ran the tool
+  with its default, which looked like success. A call-tool filter compares the arguments, and the
+  fields of object arguments such as `sheet`, with the tool's input schema and returns an error result
+  naming the unknown ones and the tool's own, so the agent can correct the call. JSON Schema's
+  `additionalProperties: false` and OpenAI's strict function calling make the same choice; the result
+  is a tool error rather than a protocol error, as MCP asks for input validation, so the model sees it.
+- **The server and the game agree on a protocol.** The game reads the options the server passes, so a
+  game built against an older library (an older package, or a project reference to an old copy of the
+  source) rejected new forms such as `duration: "150f"` in words that contradicted the tool's
+  description. The build targets now report `AgentToolsProtocol`, read with the other `-getProperty`
+  values, and the server refuses a game on another protocol, saying which side to update, as a language
+  server and its client agree on a protocol version before talking. A test checks that the targets and
+  the server state the same number; it's raised whenever an option is added, renamed or reinterpreted.
+
 ## Open questions
 
 - Confirm the VS Code extension honours `.mcp.json` from the repo root when the workspace is a subfolder.

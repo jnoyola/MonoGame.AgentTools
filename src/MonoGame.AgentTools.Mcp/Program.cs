@@ -31,6 +31,7 @@ builder.Services
         o.ServerInstructions = ServerInstructions.Text;
     })
     .WithStdioServerTransport()
+    .WithRequestFilters(filters => filters.AddCallToolFilter(ArgumentCheck.Filter))
     .WithTools<GameTools>()
     .WithTools<SheetTools>()
     .WithTools<GifTools>()
