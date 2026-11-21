@@ -7,8 +7,10 @@ namespace MonoGame.AgentTools.Input;
 /// a fixed buffer, and a full buffer (or one that has waited <see cref="FlushInterval"/>) is handed to a
 /// worker thread that appends it to the file while the next one fills, the way Unreal Insights and ETW
 /// stream trace data. If the worker falls behind, another buffer is allocated (counted in
-/// <see cref="ExtraBuffers"/>), so nothing is ever dropped. <see cref="Flush"/> writes everything so far,
-/// from any thread, such as on an unhandled exception.
+/// <see cref="ExtraBuffers"/>), so nothing is ever dropped. Each <see cref="Advance"/> commits one whole
+/// record; <see cref="FlushFinal"/> writes every committed record from any thread, such as on an unhandled
+/// exception. A failed write stops the file, keeps what was written, and is reported in <see cref="Error"/>
+/// rather than thrown on the game thread or blocking a flush.
 /// </summary>
 internal sealed class StreamedFile : IDisposable
 {
@@ -20,7 +22,7 @@ internal sealed class StreamedFile : IDisposable
     /// </summary>
     public static readonly TimeSpan FlushInterval = TimeSpan.FromSeconds(1);
 
-    private readonly FileStream _file;
+    private readonly Stream _file;
     private readonly int _bufferSize;
     private readonly object _gate = new();
     private readonly Queue<(byte[] Buffer, int Length)> _pending = new(4);
@@ -32,12 +34,19 @@ internal sealed class StreamedFile : IDisposable
     private int _inFlight;
     private long _lastSwap = Stopwatch.GetTimestamp();
     private bool _stopping;
+    private bool _closed;
     private bool _disposed;
 
     public StreamedFile(string path, int bufferSize = DefaultBufferSize)
+        : this(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 1), bufferSize)
+    {
+    }
+
+    /// <summary>Writes to <paramref name="file"/>, which it owns; for tests.</summary>
+    internal StreamedFile(Stream file, int bufferSize = DefaultBufferSize)
     {
         _bufferSize = bufferSize;
-        _file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, bufferSize: 1);
+        _file = file;
         _active = new byte[bufferSize];
         _free.Push(new byte[bufferSize]);
         _worker = new Thread(Work) { IsBackground = true, Name = "MonoGame.AgentTools file writer" };
@@ -51,6 +60,9 @@ internal sealed class StreamedFile : IDisposable
     public int ExtraBuffers { get; private set; }
 
     public long BytesWritten { get; private set; }
+
+    /// <summary>The write that stopped the file (disk full, say), or null.</summary>
+    public Exception? Error { get; private set; }
 
     /// <summary>Hands the buffer to the worker if it has waited longer than <see cref="FlushInterval"/>. Call once per frame.</summary>
     public void Tick()
@@ -67,9 +79,11 @@ internal sealed class StreamedFile : IDisposable
         return _active.AsSpan(_length);
     }
 
+    /// <summary>Commits <paramref name="count"/> bytes written to the last <see cref="GetSpan"/>: one whole record.</summary>
     public void Advance(int count)
     {
-        _length += count;
+        // Release, so a FlushFinal on another thread that reads the new length also sees the bytes.
+        Volatile.Write(ref _length, _length + count);
         BytesWritten += count;
     }
 
@@ -89,7 +103,7 @@ internal sealed class StreamedFile : IDisposable
         lock (_gate)
         {
             _lastSwap = Stopwatch.GetTimestamp();
-            if (_length > 0)
+            if (_length > 0 && !_closed)
             {
                 _pending.Enqueue((_active, _length));
                 ++_inFlight;
@@ -122,7 +136,17 @@ internal sealed class StreamedFile : IDisposable
                     continue;
                 }
             }
-            _file.Write(next.Buffer, 0, next.Length);
+            if (Error is null)
+            {
+                try
+                {
+                    _file.Write(next.Buffer, 0, next.Length);
+                }
+                catch (Exception e)
+                {
+                    Error = e;
+                }
+            }
             lock (_gate)
             {
                 _free.Push(next.Buffer);
@@ -132,18 +156,44 @@ internal sealed class StreamedFile : IDisposable
         }
     }
 
-    /// <summary>Writes everything appended so far and waits until it's on disk.</summary>
+    /// <summary>Hands the buffer to the worker and waits until everything so far is written. Game thread only.</summary>
     public void Flush()
+    {
+        Swap();
+        lock (_gate)
+        {
+            while (_inFlight > 0)
+                Monitor.Wait(_gate);
+        }
+    }
+
+    /// <summary>
+    /// Writes every committed record and closes the file to further writes, from any thread, for an
+    /// unhandled exception (after which the process ends). It never touches the buffer the game thread is
+    /// filling: the record being written when it runs is left out, and later ones are dropped.
+    /// </summary>
+    public void FlushFinal()
     {
         lock (_gate)
         {
-            if (_disposed)
+            if (_disposed || _closed)
                 return;
-            if (_length > 0)
-                Swap();
             while (_inFlight > 0)
                 Monitor.Wait(_gate);
-            _file.Flush(flushToDisk: false);
+            _closed = true;
+            var committed = Volatile.Read(ref _length);
+            if (Error is null && committed > 0)
+            {
+                try
+                {
+                    _file.Write(_active, 0, committed);
+                    _file.Flush();
+                }
+                catch (Exception e)
+                {
+                    Error = e;
+                }
+            }
         }
     }
 

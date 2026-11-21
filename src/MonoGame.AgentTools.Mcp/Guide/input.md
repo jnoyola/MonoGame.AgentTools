@@ -13,6 +13,8 @@ Script: one event per line, `<when> <control> <down|up|value>`; `#` comments.
 - gamepads: `PadA`, `PadB`, `PadX`, `PadY`, `PadStart`, `PadBack`, `PadDPadUp`…, `PadLeftShoulder`,
   `PadLeftStickButton` (click) `down`/`up`; `PadLeftStick x,y` (-1..1, y up, raw before dead zone);
   `PadLeftTrigger 0.8` (0..1). `Pad2A`… for players 2–4. Pads used are connected for the whole capture.
+- text: `Text "Ada"` (JSON string escapes) raises Window.TextInput once per character, for text
+  fields, chat and UI libraries; it presses no keys. Enter, Backspace, Tab, Escape and Delete come from their keys.
 - State holds until changed: release keys with `up`, re-center sticks with `0,0`.
 
 Example, a jump then a held move right:
@@ -29,8 +31,8 @@ A press needs at least one frame down: a down and up on the same frame is never 
 applied on each frame; the brief says how many events applied.
 
 Timing (`timing`): `fixed` (default, the game's own step; repeatable), `real` (measured frame times,
-kept as capture.timing; use with `realtime` to look for frame-rate-dependent bugs in a variable-step
-game), or a capture's name or `.timing` file to replay its frame times exactly. A replayed input's own
+paced to the step like vsync and kept as capture.timing; for frame-rate-dependent bugs in a
+variable-step game), or a capture's name or `.timing` file to replay its frame times exactly. A replayed input's own
 timing comes with it unless `timing` says otherwise.
 
 Recordings: the user runs the game with `--agenttools-record <path>` and plays; `<path>.input` (and

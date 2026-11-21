@@ -644,7 +644,15 @@ f140 PadLeftStick 0.5,-1
   whose `TotalGameTime` is at or after it. A line may carry both; `t` wins, `f` is for reading. Under
   fixed timing or a replayed `.timing` every frame's time is known before the run, so `t` is resolved
   to a frame at load time, exactly; under real timing it applies on the first frame whose measured
-  total reaches it. The when-tokens are lowercase, so `f10 F1 down` is the F1 key.
+  total reaches it. The when-tokens are lowercase, so `f10 F1 down` is the F1 key, and a frame is
+  read only as a line's first token, so `t1.5 f5 down` is the F5 key too.
+- **Typed text** is its own control, `Text "..."` (a JSON string), raising `Window.TextInput` once per
+  character and pressing no keys. Text and keys are separate streams in SDL (`SDL_TEXTINPUT` versus
+  key events, after layout, dead keys and IME), so a key press can't stand in for a character; the
+  same split as Playwright's `keyboard.insertText()` (input events only) versus `keyboard.type()`
+  (key events). The recorder listens to `TextInput` and writes what arrived before each frame as
+  `Text` lines, skipping the control characters MonoGame raises from Enter, Backspace, Tab, Escape and
+  Delete key presses, which replay with the key.
 - **Controls** are MonoGame's own names, flat, with the device built in (Unreal's `EKeys` and Source's
   bind names are flat the same way): `Keys` names bare (`Space`, `F1`, `LeftShift`); `MouseLeft`,
   `MouseRight`, `MouseMiddle`, `MouseX1`, `MouseX2`; `Mouse x,y` (window client pixels); `MouseWheel`
@@ -685,8 +693,9 @@ f140 PadLeftStick 0.5,-1
   there are some). So a variable-step game normally gets a perfectly even step in a capture, and bugs
   that need uneven frame times (frame-rate-dependent physics, smoothing jitter) only show under `real`
   or a replayed recording. `real` is non-deterministic once and reproducible after: its
-  `capture.timing` replays the run frame for frame. A hidden window isn't synced to a display, so pair
-  `real` with `realtime` for vsync-like times. A fixed-step game asks for even steps, so `real` gives
+  `capture.timing` replays the run frame for frame. A hidden window isn't synced to a display, so `real`
+  paces frames to the step itself, as vsync would: unpaced, frames measured a few milliseconds each
+  and a capture planned for a duration ended far short of it, with later input never applied. A fixed-step game asks for even steps, so `real` gives
   it measured times it wouldn't get live; it's meant for variable-step games. MonoGame's catch-up when
   a fixed-step game falls behind isn't emulated, and `IsRunningSlowly` isn't reproduced.
 - **`.timing` format:** a 16-byte header (`MGAT`, format version, first frame, reserved), then each
@@ -777,8 +786,6 @@ a divergence on its own; comparing a replay's sheet with the original's shows on
 - Input on contact-sheet labels. Held state alone misses taps between tiles; a later version could show
   held input plus presses and releases since the previous tile (as fighting-game input histories do),
   and mark the mouse position, since the OS cursor isn't in the frame.
-- Text input (`Window.TextInput` beyond control characters): a recording can't tell typing from key
-  presses, so it waits for a game that needs it.
 - Touch, mouse-relative mode (`SDL_SetRelativeMouseMode` for mouse-look), key repeat (a held key raises
   one `KeyDown`, where SDL repeats it).
 - Driving input in live play (bots, assisted play): replay is capture-only.

@@ -254,6 +254,11 @@ internal sealed unsafe class InputInjector : IInputSink, IDisposable
                     trigger.RightTrigger = (float)e.X;
                 trigger.Dirty = true;
                 break;
+            case ControlKind.Text:
+                // One TextInput per character, as SdlGamePlatform raises them; no key goes with typed text.
+                foreach (var c in e.Text!)
+                    _onTextInput(new TextInputEventArgs(c));
+                break;
         }
     }
 

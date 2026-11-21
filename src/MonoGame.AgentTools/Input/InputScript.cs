@@ -7,12 +7,15 @@ internal enum InputAction : byte { Down, Up, Set }
 /// <summary>
 /// One scripted change. <see cref="Frame"/> is 0 when the line gave only a time; <see cref="Ticks"/> is -1
 /// when it gave only a frame. Values: mouse position and the position of a <c>down x,y</c> press in X and
-/// Y; wheel notches in X; thumbstick X and Y (up positive); trigger value in X.
+/// Y; wheel notches in X; thumbstick X and Y (up positive); trigger value in X; typed characters in
+/// <see cref="Text"/>.
 /// </summary>
-internal readonly record struct ScriptEvent(int Line, int Frame, long Ticks, InputControl Control, InputAction Action, double X = 0, double Y = 0, bool HasPosition = false)
+internal readonly record struct ScriptEvent(int Line, int Frame, long Ticks, InputControl Control, InputAction Action, double X = 0, double Y = 0, bool HasPosition = false, string? Text = null)
 {
     public string Describe()
     {
+        if (Control.Kind == ControlKind.Text)
+            return $"Text {InputText.Quote(Text!)}";
         var value = Action switch
         {
             InputAction.Down when HasPosition => string.Create(CultureInfo.InvariantCulture, $"down {X:0},{Y:0}"),
@@ -38,12 +41,16 @@ internal readonly record struct ScriptEvent(int Line, int Frame, long Ticks, Inp
 /// </summary>
 internal sealed class InputScript
 {
-    private InputScript(IReadOnlyList<ScriptEvent> events, long? stepTicks, bool variableStep)
+    private InputScript(string text, IReadOnlyList<ScriptEvent> events, long? stepTicks, bool variableStep)
     {
+        Text = text;
         Events = events;
         StepTicks = stepTicks;
         VariableStep = variableStep;
     }
+
+    /// <summary>The script as read, kept with a capture so it can be replayed.</summary>
+    public string Text { get; }
 
     /// <summary>In file order.</summary>
     public IReadOnlyList<ScriptEvent> Events { get; }
@@ -70,7 +77,7 @@ internal sealed class InputScript
         {
             var number = i + 1;
             var line = lines[i];
-            var comment = line.IndexOf('#', StringComparison.Ordinal);
+            var comment = InputText.CommentStart(line);
             if (comment >= 0)
                 line = line[..comment];
             var tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
@@ -99,9 +106,10 @@ internal sealed class InputScript
             var t = 0;
             for (; t < tokens.Length && t < 2; ++t)
             {
-                // Lowercase only, so a second token such as F1 (the key) after f60 is the control.
+                // A frame comes first (f60 t1.0, as recordings write it), and lowercase only, so f5 after a
+                // time, or F5 anywhere, is the key.
                 var token = tokens[t];
-                if (frame == 0 && token.Length > 1 && token[0] == 'f' && char.IsAsciiDigit(token[1]))
+                if (t == 0 && token.Length > 1 && token[0] == 'f' && char.IsAsciiDigit(token[1]))
                 {
                     if (!int.TryParse(token.AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out frame) || frame < 1)
                         throw Error($"'{token}': frames are numbered from f1.");
@@ -113,16 +121,30 @@ internal sealed class InputScript
             }
             if (t == 0)
                 throw Error($"'{tokens[0]}': each line starts with a frame (f60) or a time (t1.5).");
+            // f1 to f24 at the start of a line are frames; say so when the key was meant.
+            var keyHint = frame is >= 1 and <= 24 ? $" '{tokens[0]}' is read as frame {frame}; the key is F{frame}." : "";
             if (t >= tokens.Length)
-                throw Error("expected a control after the frame or time.");
+                throw Error("expected a control after the frame or time." + keyHint);
 
             var name = tokens[t];
             if (!InputControl.TryParse(name, out var control))
-                throw Error($"unknown control '{name}'; did you mean '{InputControl.Suggest(name)}'?");
+                throw Error($"unknown control '{name}'; did you mean '{InputControl.Suggest(name)}'?" + keyHint);
+            if (control.Kind == ControlKind.Text)
+            {
+                // The rest of the line, spaces and all, is one quoted string.
+                var at = 0;
+                for (int k = 0; k <= t; ++k)
+                    at = line.IndexOf(tokens[k], at, StringComparison.Ordinal) + tokens[k].Length;
+                var typed = InputText.Parse(line[at..].Trim());
+                if (string.IsNullOrEmpty(typed))
+                    throw Error("Text takes one quoted string, such as Text \"Ada\", escaped as in JSON (\\\" for a quote).");
+                events.Add(new ScriptEvent(number, frame, ticks, control, InputAction.Set, Text: typed));
+                continue;
+            }
             var values = tokens.AsSpan(t + 1);
-            events.Add(ParseValue(number, frame, ticks, control, values, Error));
+            events.Add(ParseValue(number, frame, ticks, control, values, message => Error(message + keyHint)));
         }
-        return new InputScript(events, step, variable);
+        return new InputScript(text, events, step, variable);
     }
 
     private static ScriptEvent ParseValue(int line, int frame, long ticks, InputControl control, ReadOnlySpan<string> values, Func<string, Exception> error)

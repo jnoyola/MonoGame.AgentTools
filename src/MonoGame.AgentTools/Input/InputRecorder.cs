@@ -12,11 +12,13 @@ namespace MonoGame.AgentTools.Input;
 /// replays, plus a <c>.timing</c> file of each frame's elapsed time for a variable-step game. Reads
 /// through MonoGame's own <c>GetState</c> calls (gamepads without a dead zone, so the replay's game applies
 /// its own), writes only changes, and streams both files as it goes, so a crash keeps nearly everything.
-/// Allocation-free per frame.
+/// Characters typed through <c>Window.TextInput</c> are kept as <c>Text</c> lines on the frame they arrived
+/// before. Allocation-free per frame (a paste longer than the text buffer grows it once).
 /// </summary>
 internal sealed class InputRecorder : IDisposable
 {
     private const int MaxLine = 96;
+    private const int TextPerLine = 32;
 
     private static readonly byte[][] KeyNames = BuildKeyNames();
     private static readonly byte[][] MouseButtonNames = Enum.GetValues<MouseButton>().Select(b => new InputControl(ControlKind.MouseButton, (int)b).Utf8Name()).ToArray();
@@ -29,6 +31,9 @@ internal sealed class InputRecorder : IDisposable
     private readonly string _timingPath;
     private readonly bool[] _keys = new bool[256];
     private readonly GamePadState[] _pads = new GamePadState[InputControl.MaxPads];
+    private readonly EventHandler<TextInputEventArgs> _onTextInput;
+    private char[] _text = new char[256];
+    private int _textLength;
     private StreamedFile? _timing;
     private MouseState _mouse;
     private bool _fixedStep;
@@ -48,6 +53,8 @@ internal sealed class InputRecorder : IDisposable
         _input.Write(Encoding.UTF8.GetBytes(header));
         for (int i = 0; i < _pads.Length; ++i)
             _pads[i] = GamePadState.Default;
+        _onTextInput = OnTextInput;
+        game.Window.TextInput += _onTextInput;
     }
 
     public string InputPath { get; }
@@ -60,6 +67,9 @@ internal sealed class InputRecorder : IDisposable
     public int PeakEventsPerSecond { get; private set; }
     public int BufferSwaps => _input.Swaps + (_timing?.Swaps ?? 0);
     public int ExtraBuffers => _input.ExtraBuffers + (_timing?.ExtraBuffers ?? 0);
+
+    /// <summary>The write that stopped the recording (disk full, say), or null; what came before is kept.</summary>
+    public Exception? Error => _input.Error ?? _timing?.Error;
 
     /// <summary>Starts recording to <c>&lt;basePath&gt;.input</c> (and <c>.timing</c>); a given extension is dropped.</summary>
     public static InputRecorder Start(Game game, string basePath)
@@ -138,19 +148,49 @@ internal sealed class InputRecorder : IDisposable
                 Single(TriggerNames[pad * 2 + 1], state.Triggers.Right);
             previous = state;
         }
+
+        for (int start = 0; start < _textLength; start += TextPerLine)
+        {
+            var line = Begin("Text"u8, MaxLine + TextPerLine * InputText.MaxBytesPerChar);
+            End(line.Advance(InputText.Write(line.Span, _text.AsSpan(start, Math.Min(TextPerLine, _textLength - start)))));
+        }
+        _textLength = 0;
         _input.Tick();
         _timing?.Tick();
     }
 
-    /// <summary>Writes everything recorded so far; safe from another thread, such as on an unhandled exception.</summary>
-    public void Flush()
+    /// <summary>
+    /// Writes every whole event recorded so far and stops recording; safe from any thread, for an
+    /// unhandled exception.
+    /// </summary>
+    public void FlushFinal()
     {
-        _input.Flush();
-        _timing?.Flush();
+        _input.FlushFinal();
+        _timing?.FlushFinal();
+    }
+
+    /// <summary>The <c>recording</c> section of <c>summary.json</c>.</summary>
+    public Dictionary<string, object> Summary()
+    {
+        var section = new Dictionary<string, object>
+        {
+            ["input"] = InputPath,
+            ["frames"] = Frames,
+            ["events"] = Events,
+            ["peakEventsPerSecond"] = PeakEventsPerSecond,
+            ["bufferSwaps"] = BufferSwaps,
+            ["extraBuffers"] = ExtraBuffers,
+        };
+        if (TimingPath is { } timing)
+            section["timing"] = timing;
+        if (Error is { } error)
+            section["error"] = $"Recording stopped early: {error.Message}";
+        return section;
     }
 
     public void Dispose()
     {
+        _game.Window.TextInput -= _onTextInput;
         _input.Dispose();
         _timing?.Dispose();
     }
@@ -203,9 +243,19 @@ internal sealed class InputRecorder : IDisposable
     private void Single(ReadOnlySpan<byte> name, float value) => End(Float(Begin(name), value));
 
     // Each event is one line written straight into the file's buffer: "<when> <control> <value>\n".
-    private Line Begin(ReadOnlySpan<byte> name)
+    private void OnTextInput(object? sender, TextInputEventArgs e)
     {
-        var span = _input.GetSpan(MaxLine);
+        // Those MonoGame raises for Enter, Backspace and the like come back with the key on replay.
+        if (InputText.IsFromKey(e.Character))
+            return;
+        if (_textLength == _text.Length)
+            Array.Resize(ref _text, _text.Length * 2);
+        _text[_textLength++] = e.Character;
+    }
+
+    private Line Begin(ReadOnlySpan<byte> name, int room = MaxLine)
+    {
+        var span = _input.GetSpan(room);
         var length = 0;
         if (_fixedStep)
         {

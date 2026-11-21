@@ -14,6 +14,7 @@ internal enum ControlKind : byte
     PadButton,
     PadStick,
     PadTrigger,
+    Text,
 }
 
 internal enum MouseButton : byte { Left, Right, Middle, X1, X2 }
@@ -25,7 +26,8 @@ internal enum PadSide : byte { Left, Right }
 /// One input control, named the way scripts write it: MonoGame's own names, flat, with the device built in
 /// (<c>Space</c>, <c>MouseLeft</c>, <c>PadA</c>, <c>Pad2LeftStick</c>), as Unreal's <c>EKeys</c> and
 /// Source's bind names do. A stick and its click are <c>PadLeftStick</c> and <c>PadLeftStickButton</c>, as
-/// Unity's Input System names them. <see cref="Code"/> is the <see cref="Keys"/> value, <see cref="MouseButton"/>,
+/// Unity's Input System names them. <c>Text</c> types characters, as <c>Window.TextInput</c> delivers them.
+/// <see cref="Code"/> is the <see cref="Keys"/> value, <see cref="MouseButton"/>,
 /// <see cref="Buttons"/> flag or <see cref="PadSide"/>; <see cref="Pad"/> is the gamepad index, 0–3.
 /// </summary>
 internal readonly record struct InputControl(ControlKind Kind, int Code = 0, int Pad = 0)
@@ -70,6 +72,7 @@ internal readonly record struct InputControl(ControlKind Kind, int Code = 0, int
         ControlKind.PadButton => PadPrefix(Pad) + ButtonName((Buttons)Code),
         ControlKind.PadStick => PadPrefix(Pad) + ((PadSide)Code).ToString() + "Stick",
         ControlKind.PadTrigger => PadPrefix(Pad) + ((PadSide)Code).ToString() + "Trigger",
+        ControlKind.Text => "Text",
         _ => "?",
     };
 
@@ -94,6 +97,7 @@ internal readonly record struct InputControl(ControlKind Kind, int Code = 0, int
         yield return Named(new InputControl(ControlKind.MousePosition));
         yield return Named(new InputControl(ControlKind.MouseWheel));
         yield return Named(new InputControl(ControlKind.MouseWheelHorizontal));
+        yield return Named(new InputControl(ControlKind.Text));
         for (int pad = 0; pad < MaxPads; ++pad)
         {
             foreach (var button in PadButtons)

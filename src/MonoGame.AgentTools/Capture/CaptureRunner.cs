@@ -66,18 +66,17 @@ internal static class CaptureRunner
         var (script, timingMode, timingPath, recordedTiming) = inputs;
 
         Precompile.Types(typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters), typeof(ResourceCounters), typeof(ProcessMemory),
-            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputRecorder), typeof(StreamedFile));
+            typeof(FrameClock), typeof(InputPlayback), typeof(InputInjector), typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
         ConfigureDevice(game, options);
         var hooks = GameHooks.Bind(game);
         if (!hooks.BeforeRun())
             throw new PlatformNotSupportedException("This MonoGame platform runs its loop asynchronously and can't be captured.");
-        using var injector = InputInjector.Bind(game);
-        injector.Install();
+        using var injector = BindInput(game, script, out var inputNote);
 
         var wall = Stopwatch.StartNew();
         hooks.Initialize();
         hooks.BeginRun();
-        injector.Isolate(script?.PadMask ?? 0);
+        injector?.Isolate(script?.PadMask ?? 0);
 
         // The game's own step unless fps overrides it, read after Initialize in case the game sets it there.
         var step = options.Fps is int f ? TimeSpan.TicksPerSecond / f : script?.StepTicks ?? game.TargetElapsedTime.Ticks;
@@ -88,6 +87,8 @@ internal static class CaptureRunner
         using var recorder = options.RecordPath is { } record ? InputRecorder.Start(game, record) : null;
 
         var notes = new List<string>(setup.Notes);
+        if (inputNote is not null)
+            notes.Add(inputNote);
         if (playback is not null)
             notes.AddRange(playback.Warnings);
         if (script is { VariableStep: true } && timingMode == TimingMode.Fixed)
@@ -132,8 +133,8 @@ internal static class CaptureRunner
             captureWork = 0;
             time.ElapsedGameTime = TimeSpan.FromTicks(clock.Elapsed(frame));
             time.TotalGameTime = TimeSpan.FromTicks(clock.Total(frame));
-            playback?.Apply(frame, time.TotalGameTime.Ticks, injector);
-            injector.EndFrame();
+            playback?.Apply(frame, time.TotalGameTime.Ticks, injector!);
+            injector?.EndFrame();
             recorder?.Sample(time);
 
             jit?.BeginFrame(frame);
@@ -188,7 +189,9 @@ internal static class CaptureRunner
                 captureWork = Stopwatch.GetElapsedTime(workStart).Ticks;
             }
             hooks.EndDraw();
-            if (options.Realtime)
+            // Real timing paces to the step as vsync would, so the times measured are the game's own
+            // frame-to-frame variation and the capture covers the game time it was asked for.
+            if (options.Realtime || clock.Mode == TimingMode.Real)
                 WaitUntil(wall, loopStart + TimeSpan.FromTicks(clock.IsKnown ? clock.Total(frame) : step * frame));
         }
         warmup.Finish(wall.Elapsed.TotalSeconds);
@@ -206,14 +209,14 @@ internal static class CaptureRunner
         var sections = new Dictionary<string, object> { ["timing"] = TimingSection(clock, outDir, timingPath) };
         if (playback is not null)
         {
-            sections["input"] = InputSection(playback, options.InputPath!, outDir);
+            sections["input"] = InputSection(playback, script!, options.InputPath!, outDir);
             if (playback.Applied < playback.Count)
                 notes.Add(string.Create(CultureInfo.InvariantCulture, $"{playback.Count - playback.Applied} input events after f{frameCount} not applied."));
         }
         if (recorder is not null)
         {
             recorder.Dispose();
-            sections["recording"] = RecordingSection(recorder);
+            sections["recording"] = recorder.Summary();
         }
 
         var info = new ReportInfo
@@ -277,6 +280,29 @@ internal static class CaptureRunner
         return Math.Max(1, frame);
     }
 
+    /// <summary>
+    /// Hooks input for scripts and isolation. The hooks reach into MonoGame's SDL platform; where they
+    /// don't fit (another platform or MonoGame version), a capture without a script still runs, with a
+    /// note that the machine's own input isn't shut out, and a capture with one fails with the reason.
+    /// </summary>
+    private static InputInjector? BindInput(Game game, InputScript? script, out string? note)
+    {
+        note = null;
+        InputInjector? injector = null;
+        try
+        {
+            injector = InputInjector.Bind(game);
+            injector.Install();
+            return injector;
+        }
+        catch (Exception e) when (script is null && e is InvalidOperationException or PlatformNotSupportedException)
+        {
+            injector?.Dispose();
+            note = $"The machine's keyboard, mouse and gamepads aren't shut out of this capture: {e.Message}";
+            return null;
+        }
+    }
+
     private const string InputFile = "capture.input";
     private const string TimingFileName = "capture" + TimingFile.Extension;
 
@@ -289,12 +315,10 @@ internal static class CaptureRunner
             ["stepMs"] = Math.Round(clock.StepTicks / (double)TimeSpan.TicksPerMillisecond, 4),
         };
         var kept = Path.Combine(outDir, TimingFileName);
-        if (clock.Mode == TimingMode.Real)
-            TimingFile.Write(kept, clock.ElapsedTimes);
-        else if (timingPath is not null && !SamePath(timingPath, kept))
-            File.Copy(timingPath, kept, overwrite: true);
         if (clock.Mode != TimingMode.Fixed)
         {
+            // From memory: the times this capture ran with, whatever has happened to the source file since.
+            TimingFile.Write(kept, clock.ElapsedTimes);
             section["file"] = TimingFileName;
             section["frames"] = clock.Length;
             if (timingPath is not null && !SamePath(timingPath, kept))
@@ -303,12 +327,11 @@ internal static class CaptureRunner
         return section;
     }
 
-    private static Dictionary<string, object> InputSection(InputPlayback playback, string inputPath, string outDir)
+    private static Dictionary<string, object> InputSection(InputPlayback playback, InputScript script, string inputPath, string outDir)
     {
         var kept = Path.Combine(outDir, InputFile);
         var copied = !SamePath(inputPath, kept);
-        if (copied)
-            File.Copy(inputPath, kept, overwrite: true);
+        File.WriteAllText(kept, script.Text);
         var section = new Dictionary<string, object>
         {
             ["file"] = InputFile,
@@ -321,22 +344,6 @@ internal static class CaptureRunner
         };
         if (copied)
             section["source"] = inputPath;
-        return section;
-    }
-
-    internal static Dictionary<string, object> RecordingSection(InputRecorder recorder)
-    {
-        var section = new Dictionary<string, object>
-        {
-            ["input"] = recorder.InputPath,
-            ["frames"] = recorder.Frames,
-            ["events"] = recorder.Events,
-            ["peakEventsPerSecond"] = recorder.PeakEventsPerSecond,
-            ["bufferSwaps"] = recorder.BufferSwaps,
-            ["extraBuffers"] = recorder.ExtraBuffers,
-        };
-        if (recorder.TimingPath is { } timing)
-            section["timing"] = timing;
         return section;
     }
 
@@ -354,6 +361,13 @@ internal static class CaptureRunner
             var mode = options.Timing ?? (beside is not null && File.Exists(beside) ? TimingMode.File : TimingMode.Fixed);
             var timingPath = mode == TimingMode.File ? options.TimingPath ?? beside! : null;
             var recorded = timingPath is not null ? TimingFile.Read(timingPath) : null;
+            if (options.RecordPath is { } record)
+            {
+                var recordBase = Path.ChangeExtension(record, null);
+                foreach (var source in new[] { options.InputPath, timingPath })
+                    if (source is not null && SamePath(Path.ChangeExtension(source, null), recordBase))
+                        throw new ArgumentException($"--agenttools-record {record} would overwrite {source}, which this capture replays. Record to another path.");
+            }
             if (script?.StepTicks is long step && options.Fps is int fps && Math.Abs(TimeSpan.TicksPerSecond / fps - step) > 1)
                 throw new ArgumentException(string.Create(CultureInfo.InvariantCulture,
                     $"The input was recorded at a {step / (double)TimeSpan.TicksPerMillisecond:0.####} ms step, but --agenttools-fps {fps} asks for {1000.0 / fps:0.####} ms."));
