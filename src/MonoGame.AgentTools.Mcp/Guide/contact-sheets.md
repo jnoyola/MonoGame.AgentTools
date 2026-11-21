@@ -33,7 +33,8 @@ You can't watch an animation, but the user can. When they should judge motion (t
 choice between two versions), make a GIF with the gif tool and give them its path: it plays on a
 double-click in Windows, in browsers and in chat apps. It takes the same `from`, `to`, `crop` and
 `baseline` as contact_sheet (baseline plays A beside B; `diff: true` adds the changed pixels as a third
-panel, off by default since people judge motion best from A and B), plus `fps` (frames of game time per second, at
+panel, off by default since people judge motion best from A and B; turn it on when the comparison
+sheet shows a small fraction changed but not none, since A and B then look alike in motion), plus `fps` (frames of game time per second, at
 most 50; 30 by default, and one that divides the capture's fps keeps spacing even), `speed` (below 1 is
 slow motion, useful for fast effects) and `width` per frame (640 by default). GIFs are saved in the
 capture's `gifs/` folder. Their 256 colors are dithered with a fixed pattern, so smooth gradients look

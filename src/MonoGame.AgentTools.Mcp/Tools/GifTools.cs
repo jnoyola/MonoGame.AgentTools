@@ -39,7 +39,7 @@ internal sealed class GifTools(Workspace workspace)
         string? crop = null,
         [Description("A capture to play beside this one (its name or folder): A on the left, this capture as B on the right. Both need the same fps and size.")]
         string? baseline = null,
-        [Description("With baseline: add a third panel of the changed pixels in red, as contact_sheet shows them. Default false: people judge motion best from A and B alone.")]
+        [Description("With baseline: add a third panel of the changed pixels in red, as contact_sheet shows them. Default false: people judge motion best from A and B alone. Turn it on when the comparison sheet shows a small fraction changed but not none: A and B then look alike in motion, and the red shows where they differ.")]
         bool diff = false)
     {
         if (diff && baseline is null)

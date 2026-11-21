@@ -183,13 +183,15 @@ GIFs are saved in the capture's `gifs/` folder.
 { "capture": "after", "baseline": "before", "diff": true, "width": 300 }
 ```
 
-`diff` is off by default because people judge motion best from A and B alone; turn it on when the change
-is too small to spot, or to show where it is:
+`diff` is off by default because people judge motion best from A and B alone. When a change is small
+(the comparison sheet reports a small fraction of pixels changed, but not none), A and B look alike in
+motion, and the third panel shows where they differ, brighter red for larger changes:
 
-![The floaty and heavy earth slams side by side, with a third panel marking the changed pixels in red](images/earth-slam-diff.gif)
+![Two earth slams side by side that look alike, with a third panel tracing the crack's outline in red](images/earth-slam-diff.gif)
 
-*`{ "capture": "slam-heavy", "baseline": "slam-floaty", "diff": true, "from": 0.3, "to": 2.3, "crop":
-"240,40,800,600", "width": 300 }`: only the rocks differ.*
+*`{ "capture": "slam-edge-soft", "baseline": "slam-edge-hard", "diff": true, "from": 0, "to": 2, "fps": 20,
+"crop": "390,190,500,375", "width": 300 }`: only the crack decal's edge is softer in B, which changes
+about 1 to 2% of the pixels.*
 
 ### guide
 

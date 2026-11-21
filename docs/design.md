@@ -866,7 +866,10 @@ The options grew one flag at a time, and two runs needed several flags together:
   them; `diff: false` gives larger A and B tiles. Off by default in GIFs, for people, who judge motion
   best from A and B side by side (the GIF's purpose); on, it adds the third panel, drawn as the sheet
   draws it. Playwright's report likewise offers expected, actual and diff as separate views. The choice
-  of defaults is a judgment, not precedent.
+  of defaults is a judgment, not precedent, made by comparing two GIFs: for a large change (a floaty
+  against a heavy earth slam) the red covers what A and B already show, and for a small one (a crack
+  decal's edge softened) A and B look alike and the red finds it. So the tools tell agents to turn
+  `diff` on when the sheet reports a small fraction changed but not none.
 
 ## Open questions
 
