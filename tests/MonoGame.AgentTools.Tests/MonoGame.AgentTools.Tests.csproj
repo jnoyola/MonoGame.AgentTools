@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- The lowest runtime games can use and the newest: the library measures the runtime, which differs between them. -->
+    <TargetFrameworks>net8.0;net11.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -9,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
+    <!-- 10.0 is the newest that supports net8.0. -->
     <PackageReference Include="System.IO.Hashing" Version="10.0.0" />
     <PackageReference Include="xunit.v3" Version="4.0.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.1" PrivateAssets="all" />
@@ -24,9 +25,16 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- The build task's source, compiled by MSBuild in consuming builds; tested here directly. -->
+  <!--
+    The build task's source, compiled by MSBuild in consuming builds; tested here directly. It runs in
+    MSBuild on the SDK's runtime, never the game's, so it isn't tested on net8.0.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net8.0'">
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
     <Compile Include="..\..\src\MonoGame.AgentTools\build\McpConfig.cs" Link="McpConfig.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <Compile Remove="McpConfigTests.cs" />
   </ItemGroup>
 
 </Project>
