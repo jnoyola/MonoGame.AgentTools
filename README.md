@@ -3,7 +3,10 @@
 Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
 game, then iterates autonomously.
 
-![A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges](docs/images/goblin-gold.gif)
+<p align="center">
+  <img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges"><br>
+  <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em>
+</p>
 
 > Make a complete, polished top-down action game in this MonoGame project. You play as an elf archer
 > shooting a bow at goblins, and each goblin bursts into treasure when it dies. The goblins keep coming
@@ -14,8 +17,6 @@ game, then iterates autonomously.
 > through to a finished game without stopping to ask me questions; where something is unspecified,
 > decide and note the choice in a short README. Before you finish, make sure it builds, runs and plays
 > well.
-
-*One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).*
 
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
 hands and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
