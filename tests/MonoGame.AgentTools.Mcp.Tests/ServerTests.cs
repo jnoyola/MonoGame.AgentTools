@@ -43,8 +43,38 @@ public class ServerTests
 
         Assert.Equal(Path.Combine(bin, "Game.exe"), run.FileName);
         Assert.Equal(bin, run.WorkingDirectory);
+        Assert.Equal(bin, run.OutputDirectory);
         Assert.True(run.ToolsEnabled);
         Assert.False(disabled.ToolsEnabled);
+    }
+
+    [Theory]
+    [InlineData("0.1.0", "0.1.3")]
+    [InlineData("0.2.5", "0.2.0")]
+    [InlineData("1.2.0", "1.7.1")]
+    public void A_library_on_the_servers_minor_runs(string library, string server) =>
+        LibraryVersion.Check("Game", Version.Parse(library), Version.Parse(server));
+
+    [Theory]
+    [InlineData("0.1.0", "0.2.0", "Game builds MonoGame.AgentTools 0.1.0, older than this server's 0.2.0", "Update the game's MonoGame.AgentTools package to 0.2.0")]
+    [InlineData("0.3.0", "0.2.0", "Game builds MonoGame.AgentTools 0.3.0, newer than this server's 0.2.0", "Update the server to 0.3.0.")]
+    [InlineData("1.4.0", "2.0.0", "Game builds MonoGame.AgentTools 1.4.0, older than this server's 2.0.0", "package to 2.0.0")]
+    public void A_library_on_another_minor_is_refused_with_what_to_update(string library, string server, string start, string advice)
+    {
+        var error = Assert.Throws<ToolException>(() => LibraryVersion.Check("Game", Version.Parse(library), Version.Parse(server)));
+
+        Assert.StartsWith(start, error.Message, StringComparison.Ordinal);
+        Assert.Contains(advice, error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_build_without_the_library_says_so()
+    {
+        var empty = Directory.CreateTempSubdirectory().FullName;
+
+        var error = Assert.Throws<ToolException>(() => LibraryVersion.Check("Game", empty));
+
+        Assert.Contains("has no MonoGame.AgentTools.dll", error.Message, StringComparison.Ordinal);
     }
 
     [Theory]

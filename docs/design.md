@@ -843,6 +843,25 @@ The options grew one flag at a time, and two runs needed several flags together:
   project's frameworks (about 1 s, skipped when the project file names one `TargetFramework` itself) and
   builds only the one it runs.
 
+## Versions
+
+- **The minor version marks the command line.** The MCP server passes the game `--agenttools-` options,
+  so a server and a library must agree on them. The two packages ship together at one version, and the
+  minor (the major from 1.0 on) is what they must share, by SemVer's rule that a 0.x minor bump is
+  breaking. A change to the options bumps the minor in the PR that makes it, not at release, so builds
+  from source on either side of the change differ too; unreleased minors are skipped, which SemVer
+  allows. Changesets and Nerdbank.GitVersioning likewise record a bump with the change.
+- **The server refuses a game on another minor.** After building the game it reads the version of the
+  `MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a different
+  minor, saying which side to update. Without it, a game on an older package (or a project reference to
+  an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
+  description. Reading the built DLL, not a package or project property, catches both.
+- **CI enforces it.** On each PR, `tools/CommandLineContract.cs` loads the library built at the base and at
+  the PR, compares their entry flags and options, and fails if they differ without a minor bump, naming
+  the version to set, as cargo-semver-checks compares a crate with its previous release. It compares
+  names, not meanings, so a developer bumps by hand when an option keeps its name but changes what it
+  accepts; the check never refuses a bump.
+
 ## Open questions
 
 - Confirm the VS Code extension honours `.mcp.json` from the repo root when the workspace is a subfolder.

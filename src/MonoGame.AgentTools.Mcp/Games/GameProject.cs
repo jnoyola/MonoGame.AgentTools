@@ -96,7 +96,8 @@ internal sealed partial class GameProject
     /// <summary>
     /// Builds <paramref name="configuration"/> (for <paramref name="framework"/> when the project has
     /// several) and returns how to start the game, after checking that the
-    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise). Without them
+    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise) on this
+    /// server's minor version. Without them
     /// AgentTools.Attach is compiled out, so the game would ignore the capture options and never exit. The
     /// target is explicit: with -getProperty alone, MSBuild only evaluates the project and builds nothing.
     /// </summary>
@@ -128,6 +129,7 @@ internal sealed partial class GameProject
             throw new ToolException(
                 $"MonoGame.AgentTools is disabled in {Name}'s {configuration} build, so it can't be captured. It's on by default in Debug; " +
                 "for another configuration, or if the project turns it off, set <AgentToolsEnabled>true</AgentToolsEnabled>.");
+        LibraryVersion.Check(Name, run.OutputDirectory);
         return run;
     }
 
@@ -138,11 +140,12 @@ internal sealed partial class GameProject
         var target = Get(properties, "TargetPath");
         if (command.Length == 0)
             throw new ToolException("The build didn't report a run command; is the project an executable?");
+        var output = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
         var workingDirectory = Get(properties, "RunWorkingDirectory");
         if (workingDirectory.Length == 0)
-            workingDirectory = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
+            workingDirectory = output;
         var enabled = string.Equals(Get(properties, "AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
-        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, enabled);
+        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, output, enabled);
     }
 
     /// <summary>
@@ -221,4 +224,4 @@ internal sealed partial class GameProject
 }
 
 /// <summary>How to start a built game (the same properties <c>dotnet run</c> uses), and whether it has the tools.</summary>
-internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, bool ToolsEnabled);
+internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, string OutputDirectory, bool ToolsEnabled);
