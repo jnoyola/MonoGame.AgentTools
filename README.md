@@ -215,16 +215,16 @@ When a choice is about how something feels in motion, the agent can make a GIF a
 *The Earth Slam, an effect from a MonoGame visual-effects game. Made with `capture`, then `gif` of
 its first 1.9 s at 30 fps.*
 
-`baseline` plays two versions side by side, the same comparison the agent read as a
-[contact sheet](#contact-sheets):
+`baseline` plays two versions side by side, and `diff` adds the changed pixels, the same comparison the
+agent read as a [contact sheet](#contact-sheets):
 
 ```
-gif({ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.3, "to": 2.3, "crop": "240,40,800,600", "width": 400 })
+gif({ "capture": "slam-heavy", "baseline": "slam-floaty", "diff": true, "from": 0.3, "to": 2.3, "crop": "240,40,800,600", "width": 400 })
 ```
 
-![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
+![The floaty and heavy earth slams playing side by side, with a third panel marking the changed pixels in red](docs/images/earth-slam-ab.gif)
 
-*The floaty slam on the left, the heavy one on the right, at 30 fps.*
+*The floaty slam, the heavy one, then the changed pixels in red, at 30 fps.*
 
 ### Recording
 
