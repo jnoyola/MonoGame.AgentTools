@@ -5,8 +5,8 @@ is in [GoblinGold](GoblinGold), exactly as the agent wrote it; its [README](Gobl
 the agent's own, with the controls and the choices it made.
 
 <p align="center">
-  <img src="../../docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges"><br>
-  <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em>
+  <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em><br>
+  <img src="../../docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges">
 </p>
 
 ## The prompt
