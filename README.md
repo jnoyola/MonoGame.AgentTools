@@ -3,10 +3,19 @@
 Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
 game, then iterates autonomously.
 
-![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
+![A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges](docs/images/goblin-gold.gif)
 
-*The Earth Slam, an effect from a MonoGame visual-effects game. Made with `capture`, then `gif` of
-its first 1.9 s at 30 fps.*
+> Make a complete, polished top-down action game in this MonoGame project. You play as an elf archer
+> shooting a bow at goblins, and each goblin bursts into treasure when it dies. The goblins keep coming
+> and the game gets harder and harder until you die; your treasure is then your final score, shown on a
+> game-over screen from which you can play again. Moving, aiming and shooting should feel tight and
+> responsive, and hits, bursts and treasure should feel satisfying, with clear visual feedback. Use
+> keyboard and mouse controls. No audio. Use no external asset files; draw everything in code. Work
+> through to a finished game without stopping to ask me questions; where something is unspecified,
+> decide and note the choice in a short README. Before you finish, make sure it builds, runs and plays
+> well.
+
+*One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).*
 
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
 hands and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
@@ -44,6 +53,8 @@ of the output. The tools allocate nothing per frame.
 2. Attach it in `Main`, before `Run`:
 
    ```csharp
+   using MonoGame.AgentTools;
+
    using var game = new MyGame();
    AgentTools.Attach(game, args, new() { ShowHud = true });
    game.Run();
@@ -179,7 +190,13 @@ Backtick toggles it. Each session's stats are kept too; see [Live play](docs/liv
 
 ### GIFs
 
-When a choice is about how something feels in motion, the agent can make a GIF and give you its path.
+When a choice is about how something feels in motion, the agent can make a GIF and give you its path:
+
+![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
+
+*The Earth Slam, an effect from a MonoGame visual-effects game. Made with `capture`, then `gif` of
+its first 1.9 s at 30 fps.*
+
 `baseline` plays two versions side by side, the same comparison the agent read as a
 [contact sheet](#contact-sheets):
 

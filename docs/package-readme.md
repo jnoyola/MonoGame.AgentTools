@@ -19,6 +19,8 @@ game, then iterates autonomously.
 ```
 
 ```csharp
+using MonoGame.AgentTools;
+
 using var game = new MyGame();
 AgentTools.Attach(game, args);
 game.Run();
