@@ -120,19 +120,19 @@ screen and how it moves:
 its frame and game time.*
 
 `contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `baseline`,
-it compares two captures: each row shows the same frame from both and every pixel that changed, in red.
-Captures are deterministic, so any red is a real difference. Here A is a floaty version of the slam,
-with half the gravity and a slower launch to the same height, and B is the fix. Only the rocks changed:
-by 1.25 s, B's have landed while A's still hang in the air. You see the same comparison as a
-[side-by-side GIF](#gifs).
+it compares two captures: each row shows the same frame from both and every pixel that changed, in red,
+brighter for larger changes. Captures are deterministic, so any red is a real difference. Here the
+crack's edges were made harder: A is before, with soft edges, and B is after. Only the crack changed,
+and the red shows where, even in the first jolt, where A and B look alike at a glance. You see the same
+comparison as a [side-by-side GIF](#gifs).
 
 After one `capture` of each version:
 
 ```
-contact_sheet({ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.9, "to": 1.6, "count": 3, "crop": "240,40,800,600" })
+contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from": 0.1, "to": 1.5, "count": 3, "crop": "390,190,500,375" })
 ```
 
-![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
+![Three rows at 0.1, 0.8 and 1.5 seconds: the crack with soft edges, the same crack with hard edges, and the changed pixels in red, only on the crack](docs/images/earth-slam-crack-comparison.png)
 
 *Each row is A, B, then their changed pixels.*
 
@@ -208,12 +208,12 @@ its first 1.9 s at 30 fps.*
 agent read as a [contact sheet](#contact-sheets):
 
 ```
-gif({ "capture": "slam-heavy", "baseline": "slam-floaty", "diff": true, "from": 0.3, "to": 2.3, "crop": "240,40,800,600", "width": 400 })
+gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "crop": "390,190,500,375", "width": 320 })
 ```
 
-![The floaty and heavy earth slams playing side by side, with a third panel marking the changed pixels in red](docs/images/earth-slam-ab.gif)
+![The soft-edged and hard-edged cracks playing side by side, with a third panel marking the changed pixels in red](docs/images/earth-slam-crack-ab.gif)
 
-*The floaty slam, the heavy one, then the changed pixels in red, at 30 fps.*
+*Soft edges, hard edges, then the changed pixels in red, at 30 fps.*
 
 ### Recording
 
