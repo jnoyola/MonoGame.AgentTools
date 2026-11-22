@@ -77,13 +77,9 @@ of the output. The tools allocate nothing per frame.
    `ShowHud` shows the HUD whenever you run the game. Leave it out to start with the HUD hidden; backtick
    toggles it either way.
 
-3. Build in Debug. The build adds the MCP server to `.mcp.json` at the root of your repository:
-
-   ```json
-   { "mcpServers": { "monogame-agenttools": { "type": "stdio", "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@0.2.0", "--yes", "mcp"] } } }
-   ```
-
-   Commit it, and every agent that reads `.mcp.json` (Claude Code, for example) can use the tools. See
+3. Build in Debug. The build adds the MCP server to `.mcp.json` at the root of your repository, so every
+   agent that reads it (Claude Code, for example) can use the tools; commit it for everyone who clones the
+   repository. An agent session that's already running loads the tools when it restarts. See
    [MCP server](docs/mcp.md) for VS Code, Cursor and other clients.
 
 Then ask your agent something like *"Make the hits feel punchier, then show me a before and after
