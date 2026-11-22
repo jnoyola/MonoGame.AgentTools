@@ -851,6 +851,11 @@ The options grew one flag at a time, and two runs needed several flags together:
   breaking. A change to the options bumps the minor in the PR that makes it, not at release, so builds
   from source on either side of the change differ too; unreleased minors are skipped, which SemVer
   allows. Changesets and Nerdbank.GitVersioning likewise record a bump with the change.
+- **The server refuses a game on another minor.** After building the game it reads the version of the
+  `MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a different
+  minor, saying which side to update. Without it, a game on an older package (or a project reference to
+  an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
+  description. Reading the built DLL, not a package or project property, catches both.
 - **CI enforces it.** On each PR, `tools/CommandLineContract.cs` loads the library built at the base and at
   the PR, compares their entry flags and options, and fails if they differ without a minor bump, naming
   the version to set, as cargo-semver-checks compares a crate with its previous release. It compares
