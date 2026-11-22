@@ -38,7 +38,7 @@ of the output. The tools allocate nothing per frame.
 1. Reference the package from your game's executable project:
 
    ```xml
-   <PackageReference Include="MonoGame.AgentTools" Version="0.1.0" />
+   <PackageReference Include="MonoGame.AgentTools" Version="0.2.0" />
    ```
 
 2. Attach it in `Main`, before `Run`:
@@ -55,7 +55,7 @@ of the output. The tools allocate nothing per frame.
 3. Build in Debug. The build adds the MCP server to `.mcp.json` at the root of your repository:
 
    ```json
-   { "mcpServers": { "monogame-agenttools": { "type": "stdio", "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@0.1.0", "--yes", "mcp"] } } }
+   { "mcpServers": { "monogame-agenttools": { "type": "stdio", "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@0.2.0", "--yes", "mcp"] } } }
    ```
 
    Commit it, and every agent that reads `.mcp.json` (Claude Code, for example) can use the tools. See

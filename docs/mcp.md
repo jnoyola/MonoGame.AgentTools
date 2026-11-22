@@ -17,7 +17,7 @@ the server to `.mcp.json` at the root of your repository, the folder with `.git`
     "monogame-agenttools": {
       "type": "stdio",
       "command": "dotnet",
-      "args": ["dnx", "MonoGame.AgentTools.Mcp@0.1.0", "--yes", "mcp"]
+      "args": ["dnx", "MonoGame.AgentTools.Mcp@0.2.0", "--yes", "mcp"]
     }
   }
 }
@@ -39,7 +39,7 @@ the server to `.mcp.json` at the root of your repository, the folder with `.git`
 Any MCP client can run the same command. For a client that takes a JSON configuration:
 
 ```json
-{ "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@0.1.0", "--yes", "mcp"] }
+{ "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@0.2.0", "--yes", "mcp"] }
 ```
 
 The server works on the game projects under its current directory, so start it from your repository

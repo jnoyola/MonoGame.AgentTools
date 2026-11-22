@@ -2,7 +2,7 @@
 Adding MonoGame.AgentTools to a game, and what the game must do for capture to work.
 
 1. Reference the package from the game's executable project:
-   `<PackageReference Include="MonoGame.AgentTools" Version="0.1.0-*" />`
+   `<PackageReference Include="MonoGame.AgentTools" Version="0.2.0-*" />`
 2. In `Main`, after constructing the game and before `Run`:
    ```csharp
    AgentTools.Attach(game, args, new()
