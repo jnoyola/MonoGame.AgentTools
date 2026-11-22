@@ -4,10 +4,12 @@ How MonoGame.AgentTools works and why: each decision with the engine or tool pre
 alternatives considered, and the measurements behind it. Dated entries record decisions as they were
 made. For using the tools, start with the [README](../README.md).
 
-Status: v0.1 implemented (batch capture, live stats, warm-up gates, hitch report, Release stripping, MCP
-server with contact sheets, comparisons and GIFs). It was extracted from the capture harness, profiler
-and HUD of a MonoGame 3D visual-effects game, the "sample game" that many entries' measurements come
-from.
+Status: steps 1 to 4 implemented (batch capture, live stats, warm-up gates, hitch report, Release
+stripping, the MCP server with contact sheets, comparisons and GIFs, scripted input and replay, capture
+and profile runs, recorded sessions, the HUD in captures); unreleased, at version 0.2.0. Sections are
+labeled by design step, which isn't the package version (see Versions). It was extracted from the
+capture harness, profiler and HUD of a MonoGame 3D visual-effects game, the "sample game" that many
+entries' measurements come from.
 
 ## Purpose
 
@@ -282,7 +284,7 @@ point, not a reference design. Findings from MonoGame `develop` (76ed1c2, 2026-1
   Decided: ProggyClean (MIT), Dear ImGui's built-in default font, embedded as generated glyph data
   (see Implementation).
 
-## Implementation (v0.1)
+## Implementation (step 1)
 
 Layout: `src/MonoGame.AgentTools` (net8.0, compiles against `MonoGame.Framework.DesktopGL` 3.8.5 with
 `PrivateAssets=all`, so the consumer's platform package supplies MonoGame), `tests/` (xunit v3 on
@@ -307,7 +309,7 @@ Decisions made while building it, each verified by running:
   still reported.
 - **Wall-time gates need wall-time pacing.** Batch capture runs faster than real time (20 s of game
   time in 1.4 s), so gates measured in wall seconds never settle. `--agenttools-realtime` paces frames
-  to the fps the way vsync does (since v0.3, a profile does this; see below). Performance runs: `--agenttools-save none --agenttools-realtime`,
+  to the fps the way vsync does (since step 3, a profile does this; see below). Performance runs: `--agenttools-save none --agenttools-realtime`,
   5 s or more; on the sample game memory settles at frame 62 and performance at frame 242, identically across
   runs. Saving PNGs also tiers up the harness's own code in the background, which the all-threads JIT
   signal can't tell apart from the game's.
@@ -335,7 +337,7 @@ Decisions made while building it, each verified by running:
   startup rather than generating at build: it costs well under a millisecond once, and a unit test
   catches malformed data before release just as a build step would. Pixel font, so `PointClamp` at
   integer scales. License in `THIRD-PARTY-NOTICES.md`, packed with the package.
-- **HUD** (`ShowHud`; backtick toggles; in captures and profiles with `--agenttools-hud` since v0.4). Part of the live monitor, so it shows exactly
+- **HUD** (`ShowHud`; backtick toggles; in captures and profiles with `--agenttools-hud` since step 4). Part of the live monitor, so it shows exactly
   what the stats files record. Drawn after the frame's sample is taken, then the counters are re-read,
   so its draws, allocations and JIT never count against the game (`GraphicsDevice.Metrics` is sampled
   before it draws). It restores the device state `SpriteBatch` changes (blend, depth, rasterizer,
@@ -347,7 +349,7 @@ Decisions made while building it, each verified by running:
   refresh have fixed-width fields (Unreal's stat tables, RivaTuner's OSD), and the panel width follows
   the text with a 5 s peak hold (an audio meter's hold-then-release), so the edge stays still. Color
   only marks what needs attention (yellow, red); a stable gate is plain white. Backtick toggle: the developer-console key in Unreal (`stat fps`, `stat unit`), Source and Quake-lineage games (Unity's Rendering Debugger uses Ctrl+Backspace). A game that already binds backtick sees both react; making the key configurable is deferred until that happens. Was live-only
-  until v0.4, since wall-clock values make captures differ between runs; see "HUD in captures". Verified on a sample game at 720p and 1440p: 0 game-thread
+  until step 4, since wall-clock values make captures differ between runs; see "HUD in captures". Verified on a sample game at 720p and 1440p: 0 game-thread
   allocations with the HUD on, and the performance gate settles (2.13 s vs 1.85 s without it).
   - **Text is formatted every frame and shown every 0.25 s.** The first version formatted only at
     0.25 s; tiered compilation then kept re-compiling the formatting code in the background for
@@ -408,7 +410,7 @@ fix a game applies, are collected in [MonoGame findings](monogame-findings.md). 
 them: they're compiled out of Release, so a fix only they made would measure a different game from the
 one that ships.
 
-## MCP server (v0.1)
+## MCP server (step 1)
 
 `src/MonoGame.AgentTools.Mcp` (net10.0 .NET tool, `PackageType McpServer`, official C# SDK
 `ModelContextProtocol` 2.4.0 on `Microsoft.Extensions.Hosting`, the shape of `dotnet new mcpserver`).
@@ -429,7 +431,7 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   reports how to start the game: the same properties `dotnet run` uses, so custom launchers work.
   Working directory defaults to the output folder, as Visual Studio's does. Debug always: the tools
   are compiled out of Release. `-t:Build` is required: with `-getProperty` and no target, MSBuild only
-  evaluates the project, so v0.1 silently ran the last binary built (found when an A/B comparison of a
+  evaluates the project, so step 1 silently ran the last binary built (found when an A/B comparison of a
   changed effect showed no change).
 - **Process handling.** stdin/stdout/stderr of the game are redirected (the server's own stdio is the
   MCP channel); on timeout or cancellation the whole process tree is killed. Failures return
@@ -448,7 +450,7 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   enlarge small crops by whole factors up to 4x (nearest), so pixels stay crisp; sheets stay within
   1568 px wide, the long edge Claude keeps without downscaling. Labels use the HUD font, whose
   MonoGame-free half (`PixelFont.cs`) is compiled into both packages.
-- **Before and after.** `against` (`baseline` since v0.4; on `sheet` and contact_sheet) names a baseline capture. Each row is
+- **Before and after.** `against` (`baseline` since step 4; on `sheet` and contact_sheet) names a baseline capture. Each row is
   the same frame from both and a diff tile: Playwright's expected/actual/diff layout, and the
   baseline comparison of Unreal's Screenshot Comparison tool and Unity's Graphics Test Framework. One
   image, because a model compares tiles side by side far more reliably than two images held in
@@ -613,7 +615,7 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   the sample game, capture built and ran it (2 s, about 9 s total), invalid options came back as an error with
   the usage text, and a cropped 8-frame sheet came back labeled.
 
-## Input, timing and replay (v0.2)
+## Input, timing and replay (step 2)
 
 A deterministic game's frames depend only on what comes from outside it: input, and the time it's given
 each frame (plus its own random seed, which it owns). Lockstep RTS replays and Quake demos record exactly
@@ -747,7 +749,7 @@ The game keeps calling `Keyboard.GetState()`, `Mouse.GetState()` and `GamePad.Ge
 ### Recording
 
 Live play writes `session.input`, and `session.timing` for a variable-step game, to its session folder
-(v0.3; before, `--agenttools-record <path>` chose the path).
+(step 3; before, `--agenttools-record <path>` chose the path).
 
 - Sampled once per `Update` (the monitor component in live play; in the replay test, the probe game's own
   `Update` inside a capture, recording what the game read, which is how it checks injection) through MonoGame's own
@@ -791,11 +793,11 @@ a divergence on its own; comparing a replay's sheet with the original's shows on
 - Driving input in live play (bots, assisted play): replay is capture-only.
 - Contributing the MonoGame input hook.
 
-## Command line, profile and sessions (v0.3)
+## Command line, profile and sessions (step 3)
 
 The options grew one flag at a time, and two runs needed several flags together: a performance run was
 `--agenttools-save none --agenttools-realtime --agenttools-duration 8`, and replaying a session needed
-`--agenttools-record` at the time it was played. v0.3 regroups them by what a run is for.
+`--agenttools-record` at the time it was played. Step 3 regroups them by what a run is for.
 
 - **One entry flag per run, then options.** `--agenttools-capture <dir>` or `--agenttools-profile <dir>`;
   both, or an option with neither, is an error naming the choices; neither runs live. Precedent:
@@ -846,7 +848,7 @@ The options grew one flag at a time, and two runs needed several flags together:
   project's frameworks (about 1 s, skipped when the project file names one `TargetFramework` itself) and
   builds only the one it runs.
 
-## HUD in captures, baseline and diff (v0.4)
+## HUD in captures, baseline and diff (step 4)
 
 - **`hud` draws the HUD into a capture or profile**, so an agent can see what the user sees in play, or
   reproduce a report made with the HUD on, and so the docs' HUD screenshot comes from the tools. It's
@@ -890,7 +892,7 @@ The options grew one flag at a time, and two runs needed several flags together:
   names, not meanings, so a developer bumps by hand when an option keeps its name but changes what it
   accepts; the check never refuses a bump.
 
-## Unknown tool arguments (v0.4)
+## Unknown tool arguments (step 4)
 
 - **Unknown arguments are an error.** The SDK binds a tool's arguments by name and drops the rest, so
   a misspelled or renamed parameter (`frames` for `duration`, `against` for `baseline`) ran the tool
