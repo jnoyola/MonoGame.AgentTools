@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "monogame-agenttools": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["dnx", "MonoGame.AgentTools.Mcp@0.2.0", "--yes", "mcp"]
+    }
+  }
+}

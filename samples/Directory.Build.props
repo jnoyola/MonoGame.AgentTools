@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Samples build as standalone games, as their authors wrote them. Having this file stops MSBuild from
+    importing the repository's Directory.Build.props (warnings as errors, analyzers, a shared output
+    folder). AgentToolsRoot keeps each sample's .mcp.json in the sample's folder, as in a repository of
+    its own, instead of at this repository's root.
+  -->
+  <PropertyGroup>
+    <AgentToolsRoot>$(MSBuildProjectDirectory)</AgentToolsRoot>
+  </PropertyGroup>
+</Project>
