@@ -82,9 +82,6 @@ of the output. The tools allocate nothing per frame.
    repository. An agent session that's already running loads the tools when it restarts. See
    [MCP server](docs/mcp.md) for VS Code, Cursor and other clients.
 
-Then ask your agent something like *"Make the hits feel punchier, then show me a before and after
-GIF."* The rest of this page is what it works with.
-
 Your `Update` and `Draw` overrides should call `base.Update(gameTime)` and `base.Draw(gameTime)`, as the
 MonoGame templates do.
 
