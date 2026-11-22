@@ -50,7 +50,7 @@ jobs:
 
   # The MCP server refuses a game on another minor version, so a change to the options it passes the game
   # needs a minor bump (see "Versions" in docs/design.md). This compares the library at the PR's base.
-  command-line:
+  command-line-contract:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -66,7 +66,7 @@ jobs:
           dotnet build src/MonoGame.AgentTools -c Release
           dotnet build ../base/src/MonoGame.AgentTools -c Release
       - run: >-
-          dotnet run tools/CheckCommandLine.cs --
+          dotnet run tools/CommandLineContract.cs --
           ../base/artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
           artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
 

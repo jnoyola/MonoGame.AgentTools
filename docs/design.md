@@ -851,7 +851,7 @@ The options grew one flag at a time, and two runs needed several flags together:
   breaking. A change to the options bumps the minor in the PR that makes it, not at release, so builds
   from source on either side of the change differ too; unreleased minors are skipped, which SemVer
   allows. Changesets and Nerdbank.GitVersioning likewise record a bump with the change.
-- **CI enforces it.** On each PR, `tools/CheckCommandLine.cs` loads the library built at the base and at
+- **CI enforces it.** On each PR, `tools/CommandLineContract.cs` loads the library built at the base and at
   the PR, compares their entry flags and options, and fails if they differ without a minor bump, naming
   the version to set, as cargo-semver-checks compares a crate with its previous release. It compares
   names, not meanings, so a developer bumps by hand when an option keeps its name but changes what it

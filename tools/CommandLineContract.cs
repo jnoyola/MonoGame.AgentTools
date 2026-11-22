@@ -2,7 +2,7 @@
 // without a minor version bump (a major bump from 1.0 on), since the server refuses a game whose library
 // is on another minor. Run by CI against the PR's base; bump VersionPrefix in Directory.Build.props when
 // it fails, or by hand when an option keeps its name but changes its meaning, which this can't see.
-// Usage: dotnet run tools/CheckCommandLine.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>
+// Usage: dotnet run tools/CommandLineContract.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>
 
 // It loads the libraries to read their options, which native AOT (on by default for file-based apps) can't do.
 #:property PublishAot=false
@@ -12,7 +12,7 @@ using System.Runtime.Loader;
 
 if (args.Length != 2)
 {
-    Console.Error.WriteLine("Usage: dotnet run tools/CheckCommandLine.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>");
+    Console.Error.WriteLine("Usage: dotnet run tools/CommandLineContract.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>");
     return 2;
 }
 
