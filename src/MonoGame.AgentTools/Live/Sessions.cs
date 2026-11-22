@@ -35,19 +35,32 @@ internal static partial class Sessions
             var root = Path.Combine(repository, ".agenttools");
             var sessions = Path.Combine(root, "sessions");
             Directory.CreateDirectory(sessions);
-            var ignore = Path.Combine(root, ".gitignore");
-            if (!File.Exists(ignore))
-                File.WriteAllText(ignore, "# Created by MonoGame.AgentTools.\n*\n");
+            WriteIgnore(Path.Combine(root, ".gitignore"));
 
             var name = string.Create(CultureInfo.InvariantCulture, $"{game}-{now:yyyyMMdd-HHmmss}");
             var folder = Claim(sessions, name);
-            Prune(sessions);
+            Prune(sessions, game);
             return folder;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             Warn(e);
             return null;
+        }
+    }
+
+    /// <summary>Created once, by whichever game gets there first.</summary>
+    private static void WriteIgnore(string path)
+    {
+        if (File.Exists(path))
+            return;
+        try
+        {
+            using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write);
+            file.Write("# Created by MonoGame.AgentTools.\n*\n"u8);
+        }
+        catch (IOException) when (File.Exists(path))
+        {
         }
     }
 
@@ -103,13 +116,13 @@ internal static partial class Sessions
     }
 
     /// <summary>
-    /// Only folders this class made and named are pruned, so renaming a session keeps it, as naming a
-    /// capture does.
+    /// Only this game's folders that this class made and named are pruned, so renaming a session keeps it,
+    /// as naming a capture does, and another game in the repository keeps its own 10.
     /// </summary>
-    private static void Prune(string sessions)
+    private static void Prune(string sessions, string game)
     {
         var old = new DirectoryInfo(sessions).EnumerateDirectories()
-            .Where(d => File.Exists(Path.Combine(d.FullName, Marker)) && IsAutomaticName(d.Name))
+            .Where(d => File.Exists(Path.Combine(d.FullName, Marker)) && IsAutomaticName(d.Name, game))
             .OrderByDescending(d => d.CreationTimeUtc)
             .Skip(Kept);
         foreach (var directory in old)
@@ -126,8 +139,10 @@ internal static partial class Sessions
     }
 
     /// <summary><c>&lt;game&gt;-yyyyMMdd-HHmmss</c>, with <c>-n</c> after it for a second session in the same second.</summary>
-    internal static bool IsAutomaticName(string name) => AutomaticName().IsMatch(name);
+    internal static bool IsAutomaticName(string name, string game) =>
+        name.Length > game.Length + 1 && name.StartsWith(game, StringComparison.OrdinalIgnoreCase) && name[game.Length] == '-'
+        && AutomaticSuffix().IsMatch(name.AsSpan(game.Length + 1));
 
-    [GeneratedRegex(@"^.+-\d{8}-\d{6}(-\d+)?$")]
-    private static partial Regex AutomaticName();
+    [GeneratedRegex(@"^\d{8}-\d{6}(-\d+)?$")]
+    private static partial Regex AutomaticSuffix();
 }

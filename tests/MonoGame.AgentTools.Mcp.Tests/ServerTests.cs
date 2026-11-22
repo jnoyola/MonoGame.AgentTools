@@ -110,6 +110,18 @@ public class ServerTests
         Assert.EndsWith(output, run.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("<Project><PropertyGroup><TargetFramework> net8.0 </TargetFramework></PropertyGroup></Project>", "net8.0")]
+    [InlineData("<Project><!-- <TargetFramework>net8.0</TargetFramework> --></Project>", null)]
+    [InlineData("<Project><PropertyGroup Condition=\"'$(Configuration)' == 'Release'\"><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><TargetFramework Condition=\"'$(X)' == ''\">net8.0</TargetFramework></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><TargetFramework>$(GameFramework)</TargetFramework></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework><TargetFrameworks>net8.0;net10.0</TargetFrameworks></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><TargetFrameworks>net8.0;net10.0</TargetFrameworks></PropertyGroup></Project>", null)]
+    [InlineData("<Project><PropertyGroup><TargetFramework>net8.0", null)]
+    public void Framework_is_read_from_the_project_only_when_nothing_else_can_set_it(string xml, string? expected) =>
+        Assert.Equal(expected, GameProject.StatedFramework(xml));
+
     [Fact]
     public void Properties_are_found_after_warnings_that_contain_braces()
     {

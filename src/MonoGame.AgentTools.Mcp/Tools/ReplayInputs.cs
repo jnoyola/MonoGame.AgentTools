@@ -45,13 +45,16 @@ internal sealed partial record ReplayInputs(string? Script, string? InputPath, s
     }
 
     /// <summary>
-    /// Throws when a file this replays is in <paramref name="output"/>, the folder about to be replaced:
-    /// the run would delete what it plays.
+    /// The files this replays from <paramref name="output"/>, the folder about to be replaced (a capture
+    /// re-run with its own input), read so <see cref="Restore"/> can put them back once it's empty.
     /// </summary>
-    public void CheckNotIn(string output, string name)
+    public IReadOnlyList<(string Path, byte[] Bytes)> Hold(string output) =>
+        Sources.Where(source => Workspace.IsWithin(source, output)).Select(source => (source, File.ReadAllBytes(source))).ToList();
+
+    public static void Restore(IReadOnlyList<(string Path, byte[] Bytes)> held)
     {
-        if (Sources.Any(source => Workspace.IsWithin(source, output)))
-            throw new ToolException($"'{name}' is the capture being replayed, and running it again replaces it; give this run another name.");
+        foreach (var (path, bytes) in held)
+            File.WriteAllBytes(path, bytes);
     }
 
     /// <summary>The files this replays, which must outlive the pruning a new run does.</summary>

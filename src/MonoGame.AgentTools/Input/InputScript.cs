@@ -64,7 +64,13 @@ internal sealed class InputScript
     /// <summary>The gamepads the script uses, as a bit per pad index.</summary>
     public int PadMask => Events.Where(e => e.Control.IsPad).Aggregate(0, (mask, e) => mask | (1 << e.Control.Pad));
 
-    public static InputScript Load(string path) => Parse(File.ReadAllText(path), Path.GetFileName(path));
+    public static InputScript Load(string path)
+    {
+        // Shared, so a session the game that recorded it is still writing can be replayed (whole lines only:
+        // the recorder commits one line at a time).
+        using var reader = new StreamReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+        return Parse(reader.ReadToEnd(), Path.GetFileName(path));
+    }
 
     public static InputScript Parse(string text, string source)
     {

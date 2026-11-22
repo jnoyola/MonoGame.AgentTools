@@ -115,8 +115,11 @@ Pass `timing: "fixed"` to replay just the input at an even step instead: inputs 
 the game's state can drift from the session.
 
 A capture keeps the script and timing it played, as read before the game started, in `capture.input`
-and `capture.timing`. Through MCP, a capture can't replay the capture its name replaces, since running
-it deletes what it plays: give it another name.
+and `capture.timing`, so a capture re-run under its own name with its own input (`"name": "jump",
+"input": "jump"`) plays the same input again after a change.
+
+A session can be replayed while the game that recorded it is still open. The recording reaches the disk
+about once a second, so the last second may be missing: quit the game first to replay all of it.
 
 ## Making replays match
 
