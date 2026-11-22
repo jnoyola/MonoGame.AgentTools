@@ -87,7 +87,10 @@ MonoGame templates do.
 ### Capture
 
 The agent calls `capture`. The tool builds the game, runs it and returns a short reading of the run and
-a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera:
+a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera.
+
+**Prompt:** *"Capture the Earth Slam from the front camera."*<br>
+**Agent:**
 
 ```
 capture({ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" })
@@ -126,7 +129,8 @@ crack's edges were made harder: A is before, with soft edges, and B is after. On
 and the red shows where, even in the first jolt, where A and B look alike at a glance. You see the same
 comparison as a [side-by-side GIF](#gifs).
 
-After one `capture` of each version:
+**Prompt:** *"Compare the crack before and after you made its edges harder."*<br>
+**Agent:**
 
 ```
 contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from": 0.1, "to": 1.5, "count": 3, "crop": "390,190,500,375" })
@@ -139,14 +143,20 @@ contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from
 
 ### Playing the Game
 
-A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes:
+A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes.
+
+**Prompt:** *"Jump, then click the middle of the screen, and show me what happens."*<br>
+**Agent:**
 
 ```
 capture({ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" })
 ```
 
 Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control in MonoGame's own names,
-and what it does. `input` also takes a file, or a capture's name to replay its input after a fix:
+and what it does. `input` also takes a file, or a capture's name to replay its input after a fix.
+
+**Prompt:** *"Fix the jump, then replay the same input and compare."*<br>
+**Agent:**
 
 ```
 capture({ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } })
@@ -160,7 +170,10 @@ gamepad, so they stay repeatable. See [Input and replay](docs/input.md).
 
 For numbers that describe the game rather than the capture, the agent calls `profile`. It runs the game
 paced in real time, as you play it, saving no frames, for 8 seconds by default. It takes the same
-`input`, so it can profile a scripted scene or a session you played:
+`input`, so it can profile a scripted scene or a session you played.
+
+**Prompt:** *"Profile the Earth Slam."*<br>
+**Agent:**
 
 ```
 profile({ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] })
@@ -207,7 +220,10 @@ When a choice is about how something feels in motion, the agent can make a GIF a
 </p>
 
 `baseline` plays two versions side by side, and `diff` adds the changed pixels, the same comparison the
-agent read as a [contact sheet](#contact-sheets):
+agent read as a [contact sheet](#contact-sheets).
+
+**Prompt:** *"Show me a GIF of the crack before and after, with what changed highlighted."*<br>
+**Agent:**
 
 ```
 gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "crop": "390,190,500,375", "width": 320 })
@@ -261,8 +277,8 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 
 - **Your game:** MonoGame 3.8.5 or later, DesktopGL (tested on 3.8.5 and 3.8.6), targeting .NET 8 or
   later.
-- **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. It installs
-  beside older SDKs and doesn't change what your game targets.
+- **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. This
+  doesn't change what your game targets.
 - Tested on Windows. CI builds and runs the unit tests on Linux and macOS too, but captures haven't been
   run there yet.
 - Pixels can differ slightly across GPUs and drivers, so comparisons across machines need a tolerance.
