@@ -35,6 +35,48 @@ public class GifTests
     }
 
     [Fact]
+    public void A_comparison_with_diff_plays_a_third_panel_of_changed_pixels()
+    {
+        var root = Directory.CreateTempSubdirectory("agenttools-gifdiff-").FullName;
+        try
+        {
+            var workspace = new Workspace(root);
+            void Capture(string name, bool changed)
+            {
+                var folder = workspace.PrepareCapture(name);
+                File.WriteAllText(Path.Combine(folder, "summary.json"), """{ "fps": 30 }""");
+                Directory.CreateDirectory(Path.Combine(folder, "frames"));
+                for (var f = 1; f <= 2; f++)
+                {
+                    var image = new RgbImage(64, 36);
+                    Array.Fill(image.Pixels, (byte)40);
+                    if (changed && f == 2)
+                        image.Pixels.AsSpan((25 * 64 + 20) * 3, 3).Fill(255);
+                    File.WriteAllBytes(Path.Combine(folder, "frames", $"f{f:0000}.png"), Png.Encode(image));
+                }
+            }
+            Capture("before", changed: false);
+            Capture("after", changed: true);
+            var tools = new GifTools(workspace);
+
+            var result = tools.Gif("after", baseline: "before", diff: true);
+            Assert.Throws<ToolException>(() => tools.Gif("after", diff: true));
+
+            Assert.Contains("(196x36, 2 frames", result, StringComparison.Ordinal);   // three 64 px panels, 2 px gaps
+            Assert.Contains("then the changed pixels in red", result, StringComparison.Ordinal);
+            var path = Path.Combine(root, result.Split(' ')[1]);
+            var frames = Decode(File.ReadAllBytes(path), out var width, out _);
+            var red = (25 * width + 2 * (64 + 2) + 20) * 3;
+            Assert.Equal([255, 0, 0], frames[1].Pixels[red..(red + 3)]);
+            Assert.NotEqual(255, frames[0].Pixels[red]);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Palette_colors_are_exact_means_not_bin_centers()
     {
         var histogram = new GifHistogram();

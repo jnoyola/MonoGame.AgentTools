@@ -1,8 +1,10 @@
 # performance
 Getting representative frame times and allocation numbers, and reading the warm-up gates.
 
-Capture with `save: "none"`, `realtime: true` and `seconds` of at least 5. Saving PNGs adds work to every
-frame, and without realtime frames run back to back, which isn't how the game runs.
+Use profile, not capture. A capture saves PNGs, which adds work to every frame, and runs frames back to
+back, which isn't how the game runs. profile paces frames to the step in real time and saves none. Keep
+its default 8 s or longer: under 5 s the gates may not open. Give it `input` to profile a scripted
+scene or a session the user played.
 
 Numbers taken while code is still being compiled or memory is still growing describe startup, not the
 game. Two gates in summary.json's `warmup` decide when measurements are representative:
@@ -16,6 +18,18 @@ Frame-time spread isn't a gate: uncapped games jitter by nature. Read `frameTime
 `hitches`, which lists slow frames with their likely cause (JIT, GC, allocation).
 
 Any game-thread allocation after the memory gate is a per-frame allocation worth fixing.
+
+Costs in MonoGame 3.8.5 itself, which every game hits. Fix them in the game, where they also hold in
+Release (the tools never apply fixes, so they measure the game that ships):
+- First key press in live play, about 7.5 KB: `KeyboardUtil` builds its key map in a static
+  constructor, and `Keyboard`'s internal `_keys` list starts empty. Before `Run`, call
+  `RuntimeHelpers.RunClassConstructor` on the `Microsoft.Xna.Framework.Input.KeyboardUtil` type and
+  `EnsureCapacity(8)` on `_keys`, both found by reflection and skipped if missing.
+- `SpriteBatch` grows its batch the first time a frame draws more than 256 sprites (61 KB): draw the
+  busiest frame's sprites once, invisibly, in `LoadContent`.
+- About 1.1 ms of JIT at frame 9999 (`SdlGamePlatform.RunLoop` promoted from its loop patchpoint):
+  `<TieredCompilationQuickJitForLoops>false</TieredCompilationQuickJitForLoops>` avoids it.
+- `GraphicsDevice.GetBackBufferData` allocates a row each call (5.1 KB at 1280 wide): not every frame.
 `allocations.otherThreadsBytes` is garbage made by other threads (audio, tasks, libraries).
 `allocations.captureBytes` is the capture's own work between frames (reading frames back and saving
 them). It's 0 except about 5 KB on the first frame, a one-time check of the readback against
@@ -28,6 +42,7 @@ say "too short to judge". `graphicsResources` (textures, render targets, buffers
 disposed) rising usually means one created per frame and never disposed. `privateBytes` (everything the
 process holds, including native and driver memory) is judged only over 30 s or more, where growth beyond
 8 MB means native memory growing: it moves in 4 MB steps, up and down, as the GC commits and releases
-regions, so a short capture can't tell a step from a leak. `heapBytes` isn't judged: it includes garbage not yet collected, so it rises with any
-allocation until a GC, and those allocations are already counted above. Live stats
-(`--agenttools-stats`) record memory once a second for the whole session, for slower growth.
+regions, so a short run can't tell a step from a leak. `heapBytes` isn't judged: it includes garbage not yet collected, so it rises with any
+allocation until a GC, and those allocations are already counted above. Every live session's
+`summary.json` and `memory.csv` in .agenttools/sessions record memory once a second for the whole
+session, for slower growth.

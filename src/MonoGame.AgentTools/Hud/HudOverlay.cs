@@ -52,7 +52,8 @@ internal sealed class HudOverlay : IDisposable
         _device.SetRenderTargets(bindings);
     }
 
-    public void Draw(HudLine[] lines, double wallSeconds)
+    /// <summary>Draws the panel and returns the area it covers.</summary>
+    public Rectangle Draw(HudLine[] lines, double wallSeconds)
     {
         var pp = _device.PresentationParameters;
         var scale = Math.Max(1, pp.BackBufferHeight / ReferenceHeight);
@@ -94,6 +95,7 @@ internal sealed class HudOverlay : IDisposable
         _device.Textures[0] = texture;
         _device.Viewport = viewport;
         _device.ScissorRectangle = scissor;
+        return panel;
     }
 
     public void Dispose()

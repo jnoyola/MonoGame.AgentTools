@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace MonoGame.AgentTools.Mcp.Games;
 
@@ -58,16 +60,78 @@ internal sealed partial class GameProject
     }
 
     /// <summary>
-    /// Builds <paramref name="configuration"/> and returns how to start the game, after checking that the
-    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise). Without them
+    /// The framework to build and run, for a project that targets several: <paramref name="framework"/>
+    /// if it's one of them, else the first listed, as Visual Studio's debug target defaults to. Null for a
+    /// project with one framework. Found by evaluating the project, which sees frameworks set in imported
+    /// files such as Directory.Build.props, and builds nothing. Skipped (it takes about a second) when the
+    /// project file names one framework itself and none was asked for, or that one was.
+    /// </summary>
+    public async Task<string?> ChooseFrameworkAsync(string configuration, string? framework, CancellationToken cancellationToken)
+    {
+        var project = await File.ReadAllTextAsync(Path, cancellationToken).ConfigureAwait(false);
+        if (StatedFramework(project) is { } one && (framework is null || framework.Equals(one, StringComparison.OrdinalIgnoreCase)))
+            return null;
+        string[] args = ["msbuild", Path, "-nologo", $"-p:Configuration={configuration}", "-getProperty:TargetFramework", "-getProperty:TargetFrameworks"];
+        var result = await ProcessRunner.RunAsync("dotnet", args, workingDirectory: null, TimeSpan.FromMinutes(2), cancellationToken).ConfigureAwait(false);
+        if (result.TimedOut || result.ExitCode != 0)
+            throw new ToolException($"Couldn't read {Name}'s target frameworks (exit code {result.ExitCode}):\n{result.Tail()}");
+        return ChooseFramework(result.Output, framework);
+    }
+
+    /// <summary>
+    /// The one framework the project file sets unconditionally, when it sets no other: then nothing an
+    /// import adds can matter, since a project's own properties are set after Directory.Build.props.
+    /// Null when in doubt (a condition, a property reference, unreadable XML), so the project is evaluated.
+    /// </summary>
+    internal static string? StatedFramework(string projectXml)
+    {
+        XDocument xml;
+        try
+        {
+            xml = XDocument.Parse(projectXml);
+        }
+        catch (XmlException)
+        {
+            return null;
+        }
+        var elements = xml.Descendants().Where(e => e.Name.LocalName is "TargetFramework" or "TargetFrameworks").ToList();
+        if (elements is not [{ Name.LocalName: "TargetFramework" } one]
+            || one.Attribute("Condition") is not null || one.Parent?.Attribute("Condition") is not null)
+            return null;
+        var value = one.Value.Trim();
+        return value.Length > 0 && !value.Contains('$', StringComparison.Ordinal) && !value.Contains(';', StringComparison.Ordinal) ? value : null;
+    }
+
+    internal static string? ChooseFramework(string evaluationOutput, string? framework)
+    {
+        var properties = Properties(evaluationOutput, "target frameworks");
+        var single = Get(properties, "TargetFramework");
+        var frameworks = single.Length > 0
+            ? [single]
+            : Get(properties, "TargetFrameworks").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (frameworks.Length == 0)
+            throw new ToolException("MSBuild reported no target framework for the project.");
+        if (framework is not null && !frameworks.Contains(framework, StringComparer.OrdinalIgnoreCase))
+            throw new ToolException($"framework '{framework}' isn't one the project targets: {string.Join(", ", frameworks)}.");
+        if (single.Length > 0)
+            return null;
+        return framework ?? frameworks.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Builds <paramref name="configuration"/> (for <paramref name="framework"/> when the project has
+    /// several) and returns how to start the game, after checking that the
+    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise) on this
+    /// server's minor version. Without them
     /// AgentTools.Attach is compiled out, so the game would ignore the capture options and never exit. The
     /// target is explicit: with -getProperty alone, MSBuild only evaluates the project and builds nothing.
     /// </summary>
-    public async Task<RunCommand> BuildAsync(string configuration, CancellationToken cancellationToken)
+    public async Task<RunCommand> BuildAsync(string configuration, string? framework, CancellationToken cancellationToken)
     {
         string[] args =
         [
             "build", Path, "-c", configuration, "-nologo", "-t:Build",
+            .. framework is null ? Array.Empty<string>() : ["-f", framework],
             "-getProperty:RunCommand", "-getProperty:RunArguments", "-getProperty:RunWorkingDirectory", "-getProperty:TargetPath",
             "-getProperty:AgentToolsEnabled",
         ];
@@ -90,32 +154,51 @@ internal sealed partial class GameProject
             throw new ToolException(
                 $"MonoGame.AgentTools is disabled in {Name}'s {configuration} build, so it can't be captured. It's on by default in Debug; " +
                 "for another configuration, or if the project turns it off, set <AgentToolsEnabled>true</AgentToolsEnabled>.");
+        LibraryVersion.Check(Name, run.OutputDirectory);
         return run;
     }
 
     internal static RunCommand ParseRunCommand(string buildOutput)
     {
-        // With -getProperty, MSBuild prints a JSON object after any warnings.
-        var start = buildOutput.StartsWith('{') ? 0 : buildOutput.IndexOf("\n{", StringComparison.Ordinal);
-        if (start > 0)
-            ++start;
-        if (start < 0)
-            throw new ToolException("The build didn't report the game's output path.");
-
-        using var json = JsonDocument.Parse(buildOutput[start..]);
-        var properties = json.RootElement.GetProperty("Properties");
-        string Get(string name) => properties.TryGetProperty(name, out var v) ? v.GetString() ?? "" : "";
-
-        var command = Get("RunCommand");
-        var target = Get("TargetPath");
+        var properties = Properties(buildOutput, "the game's output path");
+        var command = Get(properties, "RunCommand");
+        var target = Get(properties, "TargetPath");
         if (command.Length == 0)
             throw new ToolException("The build didn't report a run command; is the project an executable?");
-        var workingDirectory = Get("RunWorkingDirectory");
+        var output = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
+        var workingDirectory = Get(properties, "RunWorkingDirectory");
         if (workingDirectory.Length == 0)
-            workingDirectory = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
-        var enabled = string.Equals(Get("AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
-        return new RunCommand(command, Get("RunArguments"), workingDirectory, enabled);
+            workingDirectory = output;
+        var enabled = string.Equals(Get(properties, "AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
+        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, output, enabled);
     }
+
+    /// <summary>
+    /// The properties MSBuild reports with -getProperty: a JSON object starting on its own line, after any
+    /// warnings (which can themselves contain braces).
+    /// </summary>
+    private static JsonElement Properties(string output, string what)
+    {
+        var start = output.StartsWith('{') ? 0 : output.IndexOf("\n{", StringComparison.Ordinal);
+        if (start > 0)
+            ++start;
+        try
+        {
+            if (start >= 0)
+            {
+                using var json = JsonDocument.Parse(output[start..]);
+                if (json.RootElement.TryGetProperty("Properties", out var properties))
+                    return properties.Clone();
+            }
+        }
+        catch (JsonException)
+        {
+        }
+        throw new ToolException($"MSBuild didn't report {what}:\n{string.Join('\n', output.Split('\n').TakeLast(20))}");
+    }
+
+    private static string Get(JsonElement properties, string name) =>
+        properties.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
 
     private static void Search(DirectoryInfo directory, int depth, List<GameProject> found)
     {
@@ -160,4 +243,4 @@ internal sealed partial class GameProject
 }
 
 /// <summary>How to start a built game (the same properties <c>dotnet run</c> uses), and whether it has the tools.</summary>
-internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, bool ToolsEnabled);
+internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, string OutputDirectory, bool ToolsEnabled);

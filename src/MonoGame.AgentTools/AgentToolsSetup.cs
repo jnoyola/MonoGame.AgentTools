@@ -6,6 +6,7 @@ internal sealed class AgentToolsSetup
     public AgentToolsSetup(AgentToolsOptions options)
     {
         HudVisible = options.ShowHud;
+        RecordSessions = options.RecordSessions;
         Notes = string.IsNullOrWhiteSpace(options.Notes) ? [] : [options.Notes];
 
         var customMetrics = options.CustomMetrics ?? [];
@@ -24,6 +25,7 @@ internal sealed class AgentToolsSetup
     }
 
     public bool HudVisible { get; }
+    public bool RecordSessions { get; }
     public IReadOnlyList<string> Notes { get; }
     public IReadOnlyList<CustomMetric> CustomMetrics { get; }
 }

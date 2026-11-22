@@ -2,12 +2,12 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.jnoyola/monogame-agenttools",
   "description": "Builds and captures a MonoGame game; returns frames, contact sheets and measurements.",
-  "version": "0.1.0-dev",
+  "version": "0.2.0-dev",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "MonoGame.AgentTools.Mcp",
-      "version": "0.1.0-dev",
+      "version": "0.2.0-dev",
       "transport": { "type": "stdio" },
       "packageArguments": [ { "type": "positional", "value": "mcp" } ]
     }

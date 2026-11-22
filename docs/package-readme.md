@@ -3,7 +3,10 @@
 Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
 game, then iterates autonomously.
 
-- **Deterministic capture**: the game's real `Update` and `Draw` at a fixed step with a hidden window.
+- **Deterministic capture**: the game's real `Update` and `Draw` at a fixed step with a hidden window,
+  or paced in real time for a profile.
+- **Input and replay**: scripted keyboard, mouse, gamepad and text, and every session you play recorded
+  so the agent can replay it frame for frame.
 - **Contact sheets, before-and-after comparisons and GIFs** for judging motion.
 - **Measurements with verdicts**: frame times, warm-up, allocations, GC, memory growth, JIT, draw calls,
   hitches and your own custom metrics.
@@ -12,7 +15,7 @@ game, then iterates autonomously.
   is left out of the output.
 
 ```xml
-<PackageReference Include="MonoGame.AgentTools" Version="0.1.0" />
+<PackageReference Include="MonoGame.AgentTools" Version="0.2.0" />
 ```
 
 ```csharp

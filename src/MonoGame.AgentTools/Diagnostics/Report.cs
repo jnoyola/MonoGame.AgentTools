@@ -16,13 +16,16 @@ internal sealed record ReportInfo
     public required double WallSeconds { get; init; }
     /// <summary>What <see cref="FrameSample.FrameMs"/> measures in this mode.</summary>
     public required string FrameTimeBasis { get; init; }
-    public int? Fps { get; init; }
+    /// <summary>Capture: frames per second of the step, rounded to 3 decimals.</summary>
+    public double? Fps { get; init; }
     public IReadOnlyList<string> CustomMetricNames { get; init; } = [];
     /// <summary>Custom metric values, frame-major: frame i, metric j at [i * metrics + j].</summary>
     public double[] CustomMetricValues { get; init; } = [];
     public IReadOnlyList<string> Notes { get; init; } = [];
     /// <summary>Live mode: memory over the whole session (frames only cover the last few seconds).</summary>
     public IReadOnlyList<MemoryPoint> MemoryHistory { get; init; } = [];
+    /// <summary>Further top-level sections, such as the capture's timing and input.</summary>
+    public IReadOnlyDictionary<string, object> Sections { get; init; } = new Dictionary<string, object>();
     public IReadOnlyDictionary<string, object> Files { get; init; } = new Dictionary<string, object>();
 }
 
@@ -189,6 +192,12 @@ internal static class Report
                 json.WriteEndObject();
             }
             json.WriteEndObject();
+        }
+
+        foreach (var (key, value) in info.Sections)
+        {
+            json.WritePropertyName(key);
+            JsonSerializer.Serialize(json, value, value.GetType());
         }
 
         if (info.Files.Count > 0)

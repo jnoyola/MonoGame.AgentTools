@@ -19,8 +19,8 @@ public static class AgentTools
 
     /// <summary>
     /// Attaches the agent tools to <paramref name="game"/> according to <paramref name="args"/>.
-    /// With <c>--agenttools-capture</c>, runs the batch capture and exits the process (this call doesn't
-    /// return). Otherwise installs the live monitor and returns.
+    /// With <c>--agenttools-capture</c> or <c>--agenttools-profile</c>, runs that batch run and exits the
+    /// process (this call doesn't return). Otherwise installs the live monitor, which records the session, and returns.
     /// </summary>
     /// <param name="game">The game to measure and capture.</param>
     /// <param name="args">The command line; <c>--agenttools-</c> options are read and the rest ignored.</param>
@@ -53,9 +53,9 @@ public static class AgentTools
             return;
         }
 
-        if (commandLine.IsCapture)
-            CaptureRunner.RunAndExit(game, commandLine, setup);
+        if (commandLine.IsBatch)
+            CaptureRunner.RunAndExit(game, commandLine, setup, commandLine.Hud ? LiveMonitor.InstallHud(game, setup) : null);
         else
-            LiveMonitor.Install(game, commandLine, setup);
+            LiveMonitor.Install(game, setup);
     }
 }

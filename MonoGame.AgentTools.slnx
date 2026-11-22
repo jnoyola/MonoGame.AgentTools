@@ -4,6 +4,7 @@
     <Project Path="src/MonoGame.AgentTools/MonoGame.AgentTools.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/InputProbe/InputProbe.csproj" />
     <Project Path="tests/MonoGame.AgentTools.Mcp.Tests/MonoGame.AgentTools.Mcp.Tests.csproj" />
     <Project Path="tests/MonoGame.AgentTools.Tests/MonoGame.AgentTools.Tests.csproj" />
   </Folder>

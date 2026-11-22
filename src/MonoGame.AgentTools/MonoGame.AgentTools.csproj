@@ -28,6 +28,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="MonoGame.AgentTools.Tests" />
     <InternalsVisibleTo Include="MonoGame.AgentTools.Mcp.Tests" />
+    <!-- The end-to-end test game, which runs the session recorder inside a capture. -->
+    <InternalsVisibleTo Include="InputProbe" />
   </ItemGroup>
 
   <ItemGroup>

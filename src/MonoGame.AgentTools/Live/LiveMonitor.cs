@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.AgentTools.Diagnostics;
 using MonoGame.AgentTools.Hud;
+using MonoGame.AgentTools.Input;
 using MonoGame.AgentTools.Runtime;
 
 namespace MonoGame.AgentTools.Live;
@@ -41,29 +42,75 @@ internal sealed class LiveMonitor : DrawableGameComponent
     private bool _toggleHeld;
     private double _hudRefreshedAt = double.NegativeInfinity;
     private Timer? _watchdog;
+    private InputRecorder? _recorder;
 
-    private LiveMonitor(Game game, CommandLineOptions options, AgentToolsSetup setup) : base(game)
+    /// <summary>
+    /// Adds the monitor to a capture or profile only to draw the HUD into its frames, as the player sees
+    /// it; the run measures and records everything else itself.
+    /// </summary>
+    public static LiveMonitor InstallHud(Game game, AgentToolsSetup setup)
+    {
+        Precompile.Types(typeof(LiveMonitor), typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters));
+        var monitor = new LiveMonitor(game, setup, hudVisible: true);
+        game.Components.Add(monitor);
+        return monitor;
+    }
+
+    /// <summary>Every pixel the HUD has covered so far, or empty if it hasn't been drawn.</summary>
+    public Rectangle HudBounds { get; private set; }
+
+    private LiveMonitor(Game game, AgentToolsSetup setup, bool hudVisible) : base(game)
     {
         _metrics = setup.CustomMetrics;
         _notes = setup.Notes;
         _metricRing = new double[Capacity * _metrics.Count];
         _hudShown = HudText.CreateLines(_metrics.Count, _notes);
         _hudPending = HudText.CreateLines(_metrics.Count, _notes);
-        _hudVisible = options.Hud || setup.HudVisible;
+        _hudVisible = hudVisible;
         UpdateOrder = int.MinValue;
         DrawOrder = int.MaxValue;
     }
 
-    public static void Install(Game game, CommandLineOptions options, AgentToolsSetup setup)
+    /// <summary>Adds the monitor to the game and, unless the game opted out, records the session to its own folder.</summary>
+    public static void Install(Game game, AgentToolsSetup setup)
     {
         Precompile.Types(typeof(LiveMonitor), typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters),
-            typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters), typeof(MemoryHistory), typeof(ProcessMemory));
-        var monitor = new LiveMonitor(game, options, setup);
+            typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters), typeof(MemoryHistory), typeof(ProcessMemory),
+            typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
+        var monitor = new LiveMonitor(game, setup, hudVisible: setup.HudVisible);
         game.Components.Add(monitor);
         monitor.StartWatchdog(GameHooks.Bind(game));
-        if (options.StatsPath is not null)
-            game.Exiting += (_, _) => monitor.WriteStats(options.StatsPath);
+        if (!setup.RecordSessions || Sessions.Create(Sessions.GameName(game), DateTime.Now) is not { } folder)
+            return;
+        InputRecorder recorder;
+        try
+        {
+            recorder = monitor._recorder = InputRecorder.Start(game, Path.Combine(folder, SessionInput));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Sessions.Warn(e);
+            return;
+        }
+        // Written as it goes; flushed on a crash too, since that recording is the one most worth having.
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => recorder.FlushFinal();
+        game.Exiting += (_, _) =>
+        {
+            // Quitting must never crash because of the tools, whatever went wrong; the input is already on disk.
+            try
+            {
+                recorder.Dispose();
+                monitor.WriteSession(folder);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"MonoGame.AgentTools: this session's stats weren't saved: {e.Message}");
+            }
+        };
     }
+
+    /// <summary>The recording's base name in a session folder: <c>session.input</c> and <c>session.timing</c>.</summary>
+    public const string SessionInput = "session";
 
     /// <summary>
     /// Backtick (<see cref="Keys.OemTilde"/>, the key left of 1 on US layouts) toggles the HUD, the key
@@ -80,6 +127,9 @@ internal sealed class LiveMonitor : DrawableGameComponent
     public override void Update(GameTime gameTime)
     {
         Interlocked.Increment(ref _updates);
+        // MonoGame's first Update has a zero GameTime and isn't a frame, as in captures.
+        if (_recorder is not null && gameTime.TotalGameTime != TimeSpan.Zero)
+            _recorder.Sample(gameTime);
         var pressed = Game.IsActive && IsToggleKey(Keyboard.GetState());
         if (pressed && !_toggleHeld)
         {
@@ -136,7 +186,8 @@ internal sealed class LiveMonitor : DrawableGameComponent
                 (_hudShown, _hudPending) = (_hudPending, _hudShown);
                 _hudRefreshedAt = wall;
             }
-            _hud.Draw(_hudShown, wall);
+            var panel = _hud.Draw(_hudShown, wall);
+            HudBounds = HudBounds.IsEmpty ? panel : Rectangle.Union(HudBounds, panel);
         }
 
         // Exclude the tools' own work since the sample: the HUD, and the process-memory read where it allocates.
@@ -231,7 +282,8 @@ internal sealed class LiveMonitor : DrawableGameComponent
         }, null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
     }
 
-    private void WriteStats(string path)
+    /// <summary>The session's summary, per-frame table and memory history, named as in a capture folder.</summary>
+    private void WriteSession(string folder)
     {
         var count = Math.Min(_frames, Capacity);
         var frames = new FrameSample[count];
@@ -244,24 +296,25 @@ internal sealed class LiveMonitor : DrawableGameComponent
         }
         var wall = _wall.Elapsed.TotalSeconds;
         _warmup.Finish(wall);
-        var pp = GraphicsDevice.PresentationParameters;
+        // Null when the game quits before its device exists.
+        var pp = Game.GraphicsDevice?.PresentationParameters;
         var info = new ReportInfo
         {
             Mode = "live",
             Game = Game.GetType().FullName ?? Game.GetType().Name,
-            Width = pp.BackBufferWidth,
-            Height = pp.BackBufferHeight,
+            Width = pp?.BackBufferWidth ?? 0,
+            Height = pp?.BackBufferHeight ?? 0,
             WallSeconds = wall,
             FrameTimeBasis = $"wall time between frames (last {Capacity} frames kept)",
             CustomMetricNames = _metrics.Select(p => p.Name).ToArray(),
             CustomMetricValues = metricValues,
             Notes = _notes,
             MemoryHistory = _memoryHistory.Points.ToArray(),
+            Sections = _recorder is null ? new Dictionary<string, object>() : new() { ["recording"] = _recorder.Summary() },
         };
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        Report.WriteSummary(path, info, FrameAnalysis.Run(frames, _warmup));
-        Report.WriteCsv(Path.ChangeExtension(path, ".csv"), info, frames);
-        Report.WriteMemoryCsv(Path.ChangeExtension(path, ".memory.csv"), info.MemoryHistory);
+        Report.WriteSummary(Path.Combine(folder, "summary.json"), info, FrameAnalysis.Run(frames, _warmup));
+        Report.WriteCsv(Path.Combine(folder, "frames.csv"), info, frames);
+        Report.WriteMemoryCsv(Path.Combine(folder, "memory.csv"), info.MemoryHistory);
     }
 
     protected override void Dispose(bool disposing)
@@ -269,6 +322,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
         if (disposing)
         {
             _watchdog?.Dispose();
+            _recorder?.Dispose();
             _hud?.Dispose();
             _resources?.Dispose();
         }
