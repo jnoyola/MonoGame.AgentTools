@@ -6,7 +6,7 @@ made. For using the tools, start with the [README](../README.md).
 
 Status: steps 1 to 4 implemented (batch capture, live stats, warm-up gates, hitch report, Release
 stripping, the MCP server with contact sheets, comparisons and GIFs, scripted input and replay, capture
-and profile runs, recorded sessions, the HUD in captures); unreleased, at version 0.2.0. Sections are
+and profile runs, recorded sessions, the HUD in captures), released as 0.2.0. Sections are
 labeled by design step, which isn't the package version (see Versions). It was extracted from the
 capture harness, profiler and HUD of a MonoGame 3D visual-effects game, the "sample game" that many
 entries' measurements come from.
@@ -891,6 +891,10 @@ The options grew one flag at a time, and two runs needed several flags together:
   the version to set, as cargo-semver-checks compares a crate with its previous release. It compares
   names, not meanings, so a developer bumps by hand when an option keeps its name but changes what it
   accepts; the check never refuses a bump.
+- **A tag publishes.** Pushing `vX.Y.Z` on `main` packs both packages at that version, failing if it
+  isn't `VersionPrefix`, and pushes them to nuget.org through trusted publishing: the job trades
+  GitHub's OIDC token for an API key that lasts an hour, so the repository stores no key. NuGet
+  recommends it over long-lived keys, as PyPI and npm do with their trusted publishers.
 
 ## Unknown tool arguments (step 4)
 
@@ -931,4 +935,4 @@ The options grew one flag at a time, and two runs needed several flags together:
 5. Session mode over a named pipe.
 6. `MonoGame.AgentTools.Mcp` server: ~~tools, guide content~~ done (see MCP server). ~~`.mcp.json`
    merge from the library's targets~~ done (2026-11-18; see Setup step 3).
-7. Pack and publish both packages.
+7. ~~Pack and publish both packages~~ done (2026-11-22, 0.2.0; see Versions).

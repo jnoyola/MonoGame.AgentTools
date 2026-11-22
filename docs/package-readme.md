@@ -29,6 +29,7 @@ game.Run();
 Requires MonoGame 3.8.5 DesktopGL and a game targeting .NET 8 or later. The MCP server runs through
 `dotnet dnx`, which needs the .NET 10 SDK or later on your machine.
 
-Build in Debug, then ask your agent to capture the game.
+Build in Debug, then ask your agent to capture the game. The build adds the MCP server to your
+repository's `.mcp.json`; an agent session that's already running loads it when it restarts.
 
 Documentation, examples and images: https://github.com/jnoyola/MonoGame.AgentTools
