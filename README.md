@@ -114,10 +114,10 @@ Custom metrics (first → last, min to max):
 The capture returns a contact sheet, which the agent reads as an image, so it can judge what's on
 screen and how it moves:
 
-![Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land](docs/images/earth-slam-sheet.png)
-
-*The sheet that `capture` call returned: 12 frames picked evenly across the 2.5 s run, each labeled with
-its frame and game time.*
+<p align="center">
+  <img src="docs/images/earth-slam-sheet.png" alt="Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land"><br>
+  <em>The sheet that <code>capture</code> call returned: 12 frames picked evenly across the 2.5 s run, each labeled with its frame and game time.</em>
+</p>
 
 `contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `baseline`,
 it compares two captures: each row shows the same frame from both and every pixel that changed, in red,
@@ -132,9 +132,10 @@ After one `capture` of each version:
 contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from": 0.1, "to": 1.5, "count": 3, "crop": "390,190,500,375" })
 ```
 
-![Three rows at 0.1, 0.8 and 1.5 seconds: the crack with soft edges, the same crack with hard edges, and the changed pixels in red, only on the crack](docs/images/earth-slam-crack-comparison.png)
-
-*Each row is A, B, then their changed pixels.*
+<p align="center">
+  <img src="docs/images/earth-slam-crack-comparison.png" alt="Three rows at 0.1, 0.8 and 1.5 seconds: the crack with soft edges, the same crack with hard edges, and the changed pixels in red, only on the crack"><br>
+  <em>Each row is A, B, then their changed pixels.</em>
+</p>
 
 ### Playing the Game
 
@@ -191,18 +192,19 @@ With `ShowHud`, the HUD shows the agent's measurements in the corner while you p
 allocations, GCs, memory, GPU resources, JIT, the warm-up gates, draw calls and your custom metrics.
 Backtick (<kbd>&#96;</kbd>) toggles it. Each session's stats are kept too; see [Live play](docs/live.md).
 
-![The Earth Slam with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game's particle count](docs/images/hud.png)
-
-*The HUD over the Earth Slam, as you see it in play. The agent can capture it too, with `capture({ "hud": true })`.*
+<p align="center">
+  <img src="docs/images/hud.png" alt="The Earth Slam with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game&#x27;s particle count"><br>
+  <em>The HUD over the Earth Slam, as you see it in play. The agent can capture it too, with <code>capture({ "hud": true })</code>.</em>
+</p>
 
 ### GIFs
 
 When a choice is about how something feels in motion, the agent can make a GIF and give you its path:
 
-![An earth slam effect, captured frame by frame and played back as a GIF](docs/images/earth-slam.gif)
-
-*The Earth Slam, an effect from a MonoGame visual-effects game. Made with `capture`, then `gif` of
-its first 1.9 s at 30 fps.*
+<p align="center">
+  <img src="docs/images/earth-slam.gif" alt="An earth slam effect, captured frame by frame and played back as a GIF"><br>
+  <em>The Earth Slam, an effect from a MonoGame visual-effects game. Made with <code>capture</code>, then <code>gif</code> of its first 1.9 s at 30 fps.</em>
+</p>
 
 `baseline` plays two versions side by side, and `diff` adds the changed pixels, the same comparison the
 agent read as a [contact sheet](#contact-sheets):
@@ -211,9 +213,10 @@ agent read as a [contact sheet](#contact-sheets):
 gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "crop": "390,190,500,375", "width": 320 })
 ```
 
-![The soft-edged and hard-edged cracks playing side by side, with a third panel marking the changed pixels in red](docs/images/earth-slam-crack-ab.gif)
-
-*Soft edges, hard edges, then the changed pixels in red, at 30 fps.*
+<p align="center">
+  <img src="docs/images/earth-slam-crack-ab.gif" alt="The soft-edged and hard-edged cracks playing side by side, with a third panel marking the changed pixels in red"><br>
+  <em>Soft edges, hard edges, then the changed pixels in red, at 30 fps.</em>
+</p>
 
 ### Recording
 
