@@ -37,7 +37,7 @@ instructions, as any agent would in a project set up with the [Quick Start](../.
 | Model | Claude Opus 5.5, medium effort |
 | Claude Code | 2.1.330 |
 | .NET SDK / MonoGame | 11.0.100 / 3.8.6.1 |
-| MonoGame.AgentTools | 0.2.0 (a prerelease build of it at the time) |
+| MonoGame.AgentTools | 0.2.0 |
 | Time | 18 minutes |
 | Tokens | 4.48 M: 89 K output, 4.24 M cache read, 142 K cache write, 72 uncached input |
 | Cost | $3.76 at API list price |
