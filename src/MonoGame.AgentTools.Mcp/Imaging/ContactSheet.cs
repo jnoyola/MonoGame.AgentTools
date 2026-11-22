@@ -17,6 +17,19 @@ internal readonly record struct Crop(int X, int Y, int Width, int Height)
             throw new ToolException("crop width and height must be positive.");
         return new Crop(v[0], v[1], v[2], v[3]);
     }
+
+    public bool Contains(int x, int y) => x >= X && x < X + Width && y >= Y && y < Y + Height;
+
+    /// <summary>The smallest region covering both; either may be null.</summary>
+    public static Crop? Union(Crop? a, Crop? b)
+    {
+        if (a is not { } p)
+            return b;
+        if (b is not { } q)
+            return p;
+        int x = Math.Min(p.X, q.X), y = Math.Min(p.Y, q.Y);
+        return new Crop(x, y, Math.Max(p.X + p.Width, q.X + q.Width) - x, Math.Max(p.Y + p.Height, q.Y + q.Height) - y);
+    }
 }
 
 internal sealed record SheetTile(int Frame, double Seconds, string Path);
@@ -61,12 +74,15 @@ internal static class ContactSheet
     /// counts (ImageMagick compare's default of no fuzz), rather than pixelmatch's threshold for
     /// cross-machine noise, which hides faint opacity changes in effects. Changed pixels are red, brighter
     /// for larger changes (pixelmatch's YIQ difference), over a dimmed B. <paramref name="changed"/>
-    /// receives each row's fraction of changed pixels within the crop.
+    /// receives each row's fraction of changed pixels within the crop. Pixels in <paramref name="ignore"/>
+    /// (the HUD, whose numbers differ between runs) aren't compared, and show in the diff as
+    /// <see cref="IgnoredColor"/>. Without <paramref name="diff"/>, rows are just A and B.
     /// </summary>
-    public static RgbImage BuildComparison(IReadOnlyList<(SheetTile A, SheetTile B)> pairs, Crop? crop, PixelFont font, double[] changed)
+    public static RgbImage BuildComparison(IReadOnlyList<(SheetTile A, SheetTile B)> pairs, Crop? crop, PixelFont font, double[] changed,
+        bool diff = true, Crop? ignore = null)
     {
         ArgumentOutOfRangeException.ThrowIfZero(pairs.Count);
-        const int columns = 3;
+        var columns = diff ? 3 : 2;
         var first = Png.Load(pairs[0].A.Path);
         var layout = Fit(first, crop, columns);
         var sheet = new RgbImage(columns * layout.TileWidth + (columns - 1) * Gap, pairs.Count * layout.TileHeight + (pairs.Count - 1) * Gap);
@@ -75,17 +91,23 @@ internal static class ContactSheet
         {
             var a = i == 0 ? first : Load(pairs[i].A, first);
             var b = Load(pairs[i].B, first);
-            changed[i] = Diff(a, b, layout.Region, change);
+            changed[i] = Diff(a, b, layout.Region, change, ignore);
             var originY = i * (layout.TileHeight + Gap);
             Blit(a, layout, sheet, 0, originY);
             Blit(b, layout, sheet, layout.TileWidth + Gap, originY);
-            BlitDiff(b, change, layout, sheet, 2 * (layout.TileWidth + Gap), originY);
             DrawLabel(sheet, font, Label("A ", pairs[i].A), 0, originY);
             DrawLabel(sheet, font, Label("B ", pairs[i].B), layout.TileWidth + Gap, originY);
-            DrawLabel(sheet, font, ChangedLabel(changed[i]), 2 * (layout.TileWidth + Gap), originY);
+            if (diff)
+            {
+                BlitDiff(b, change, layout, ignore, sheet, 2 * (layout.TileWidth + Gap), originY);
+                DrawLabel(sheet, font, ChangedLabel(changed[i]), 2 * (layout.TileWidth + Gap), originY);
+            }
         }
         return sheet;
     }
+
+    /// <summary>Where a diff shows an area left out of the comparison: a dark blue, unlike both the dimmed context and the red of a change.</summary>
+    public static readonly (byte R, byte G, byte B) IgnoredColor = (20, 40, 110);
 
     public static string ChangedLabel(double changed) =>
         changed == 0 ? "same" : string.Create(CultureInfo.InvariantCulture, $"diff {Math.Max(changed * 100, 0.01):0.00}%");
@@ -126,15 +148,21 @@ internal static class ContactSheet
     /// Each pixel's change, 0 for none, else 1 to 255 by pixelmatch's YIQ difference (perceptual: luma
     /// counts most), scaled so a quarter of the black-to-white difference is full. Returns the changed fraction.
     /// </summary>
-    private static double Diff(RgbImage a, RgbImage b, Crop region, byte[] change)
+    public static double Diff(RgbImage a, RgbImage b, Crop region, byte[] change, Crop? ignore = null)
     {
         const double maxDelta = 35215; // the YIQ difference between black and white
-        var count = 0;
+        int count = 0, compared = 0;
         for (int y = 0; y < region.Height; ++y)
         {
             var o = ((region.Y + y) * a.Width + region.X) * 3;
             for (int x = 0; x < region.Width; ++x, o += 3)
             {
+                if (ignore is { } skip && skip.Contains(region.X + x, region.Y + y))
+                {
+                    change[y * region.Width + x] = 0;
+                    continue;
+                }
+                ++compared;
                 double dr = a.Pixels[o] - b.Pixels[o], dg = a.Pixels[o + 1] - b.Pixels[o + 1], db = a.Pixels[o + 2] - b.Pixels[o + 2];
                 byte level = 0;
                 if (dr != 0 || dg != 0 || db != 0)
@@ -149,7 +177,7 @@ internal static class ContactSheet
                 change[y * region.Width + x] = level;
             }
         }
-        return count / (double)(region.Width * region.Height);
+        return compared > 0 ? count / (double)compared : 0;
     }
 
     private static void Blit(RgbImage frame, Layout layout, RgbImage sheet, int originX, int originY)
@@ -186,7 +214,7 @@ internal static class ContactSheet
     /// Red where any pixel in the source block changed (its largest change, from dark to full red), so a
     /// one-pixel change survives downscaling; elsewhere B's luminance at a third, for context.
     /// </summary>
-    private static void BlitDiff(RgbImage frame, byte[] change, Layout layout, RgbImage sheet, int originX, int originY)
+    private static void BlitDiff(RgbImage frame, byte[] change, Layout layout, Crop? ignore, RgbImage sheet, int originX, int originY)
     {
         const int minimumRed = 110; // above the dimmed context (at most 85), so the smallest change shows
         var (region, down, up) = (layout.Region, layout.Down, layout.Up);
@@ -209,7 +237,11 @@ internal static class ContactSheet
                     }
                 }
                 var d = ((originY + ty) * sheet.Width + originX + tx) * 3;
-                if (level > 0)
+                if (level == 0 && ignore is { } skip && skip.Contains(region.X + mx, region.Y + my))
+                {
+                    (sheet.Pixels[d], sheet.Pixels[d + 1], sheet.Pixels[d + 2]) = IgnoredColor;
+                }
+                else if (level > 0)
                 {
                     sheet.Pixels[d] = (byte)(minimumRed + level * (255 - minimumRed) / 255);
                     sheet.Pixels[d + 1] = 0;

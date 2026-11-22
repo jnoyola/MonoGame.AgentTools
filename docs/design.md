@@ -335,7 +335,7 @@ Decisions made while building it, each verified by running:
   startup rather than generating at build: it costs well under a millisecond once, and a unit test
   catches malformed data before release just as a build step would. Pixel font, so `PointClamp` at
   integer scales. License in `THIRD-PARTY-NOTICES.md`, packed with the package.
-- **HUD** (`ShowHud`; backtick toggles; the `--agenttools-hud` flag was dropped in v0.3). Part of the live monitor, so it shows exactly
+- **HUD** (`ShowHud`; backtick toggles; in captures and profiles with `--agenttools-hud` since v0.4). Part of the live monitor, so it shows exactly
   what the stats files record. Drawn after the frame's sample is taken, then the counters are re-read,
   so its draws, allocations and JIT never count against the game (`GraphicsDevice.Metrics` is sampled
   before it draws). It restores the device state `SpriteBatch` changes (blend, depth, rasterizer,
@@ -346,9 +346,8 @@ Decisions made while building it, each verified by running:
   top-left debug text, with text left-aligned and margin equal to padding. Numbers that change every
   refresh have fixed-width fields (Unreal's stat tables, RivaTuner's OSD), and the panel width follows
   the text with a 5 s peak hold (an audio meter's hold-then-release), so the edge stays still. Color
-  only marks what needs attention (yellow, red); a stable gate is plain white. Backtick toggle: the developer-console key in Unreal (`stat fps`, `stat unit`), Source and Quake-lineage games (Unity's Rendering Debugger uses Ctrl+Backspace). A game that already binds backtick sees both react; making the key configurable is deferred until that happens. Live-only:
-  `--agenttools-hud` with `--agenttools-capture` is rejected, since wall-clock values would make
-  captures differ between runs. Verified on a sample game at 720p and 1440p: 0 game-thread
+  only marks what needs attention (yellow, red); a stable gate is plain white. Backtick toggle: the developer-console key in Unreal (`stat fps`, `stat unit`), Source and Quake-lineage games (Unity's Rendering Debugger uses Ctrl+Backspace). A game that already binds backtick sees both react; making the key configurable is deferred until that happens. Was live-only
+  until v0.4, since wall-clock values make captures differ between runs; see "HUD in captures". Verified on a sample game at 720p and 1440p: 0 game-thread
   allocations with the HUD on, and the performance gate settles (2.13 s vs 1.85 s without it).
   - **Text is formatted every frame and shown every 0.25 s.** The first version formatted only at
     0.25 s; tiered compilation then kept re-compiling the formatting code in the background for
@@ -404,7 +403,10 @@ code with an on-stack-replacement patchpoint, and the runtime compiles the optim
 version synchronously after about 10,000 iterations: about 2 min 47 s into play at 60 fps, long after
 warm-up. Identical with and without the HUD; named with a JIT `EventListener`. A game can avoid it with
 `<TieredCompilationQuickJitForLoops>false</TieredCompilationQuickJitForLoops>` (methods with loops are
-then compiled optimized up front), at some startup cost; not yet measured.
+then compiled optimized up front), at some startup cost; not yet measured. Findings like this, with the
+fix a game applies, are collected in [MonoGame findings](monogame-findings.md). The tools never apply
+them: they're compiled out of Release, so a fix only they made would measure a different game from the
+one that ships.
 
 ## MCP server (v0.1)
 
@@ -446,7 +448,7 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   enlarge small crops by whole factors up to 4x (nearest), so pixels stay crisp; sheets stay within
   1568 px wide, the long edge Claude keeps without downscaling. Labels use the HUD font, whose
   MonoGame-free half (`PixelFont.cs`) is compiled into both packages.
-- **Before and after.** `against` (on `sheet` and contact_sheet) names a baseline capture. Each row is
+- **Before and after.** `against` (`baseline` since v0.4; on `sheet` and contact_sheet) names a baseline capture. Each row is
   the same frame from both and a diff tile: Playwright's expected/actual/diff layout, and the
   baseline comparison of Unreal's Screenshot Comparison tool and Unity's Graphics Test Framework. One
   image, because a model compares tiles side by side far more reliably than two images held in
@@ -843,6 +845,31 @@ The options grew one flag at a time, and two runs needed several flags together:
   MSBuild reports no run command for a multi-targeted project's outer build, so the server evaluates the
   project's frameworks (about 1 s, skipped when the project file names one `TargetFramework` itself) and
   builds only the one it runs.
+
+## HUD in captures, baseline and diff (v0.4)
+
+- **`hud` draws the HUD into a capture or profile**, so an agent can see what the user sees in play, or
+  reproduce a report made with the HUD on, and so the docs' HUD screenshot comes from the tools. It's
+  the live monitor itself, installed only to draw, as Unity Recorder's "Capture UI" and Unreal Movie
+  Render Queue's UI pass add the overlay to a recording on request. Its numbers are wall-clock, so the
+  summary's `hud.region` records the area it covered and a note says the run differs there, and that
+  draw counts and frame times include it. In an unpaced capture its frame times show the capture's
+  pace; a profile, paced as play is, shows the player's. Experimental: whether agents use it beyond
+  screenshots; the standard alternative is a person's own screenshot of live play.
+- **Comparisons leave the HUD out.** The union of both captures' HUD regions isn't compared, isn't
+  counted in the percentage changed, and shows in a dark blue in the diff tile, as Playwright's
+  `toHaveScreenshot({ mask })` and Percy's and Chromatic's ignore regions do for dynamic content. The
+  rest of the frame stays deterministic: the HUD restores the device state it changes.
+- **`against` is renamed `baseline`**, the word Playwright, Applitools and Unreal's Screenshot
+  Comparison use for the image a run is compared with, and the one the docs already used to explain it.
+- **`diff` chooses whether the changed pixels show.** On by default in sheets, where the agent reads
+  them; `diff: false` gives larger A and B tiles. Off by default in GIFs, for people, who judge motion
+  best from A and B side by side (the GIF's purpose); on, it adds the third panel, drawn as the sheet
+  draws it. Playwright's report likewise offers expected, actual and diff as separate views. The choice
+  of defaults is a judgment, not precedent, made by comparing two GIFs: for a large change (a floaty
+  against a heavy earth slam) the red covers what A and B already show, and for a small one (a crack
+  decal's edges made harder) the change is easy to miss and the red shows where it is. So the tools tell agents to turn
+  `diff` on when the sheet reports a small fraction changed but not none.
 
 ## Versions
 

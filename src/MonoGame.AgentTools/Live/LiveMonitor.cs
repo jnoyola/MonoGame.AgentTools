@@ -44,14 +44,29 @@ internal sealed class LiveMonitor : DrawableGameComponent
     private Timer? _watchdog;
     private InputRecorder? _recorder;
 
-    private LiveMonitor(Game game, AgentToolsSetup setup) : base(game)
+    /// <summary>
+    /// Adds the monitor to a capture or profile only to draw the HUD into its frames, as the player sees
+    /// it; the run measures and records everything else itself.
+    /// </summary>
+    public static LiveMonitor InstallHud(Game game, AgentToolsSetup setup)
+    {
+        Precompile.Types(typeof(LiveMonitor), typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters));
+        var monitor = new LiveMonitor(game, setup, hudVisible: true);
+        game.Components.Add(monitor);
+        return monitor;
+    }
+
+    /// <summary>Every pixel the HUD has covered so far, or empty if it hasn't been drawn.</summary>
+    public Rectangle HudBounds { get; private set; }
+
+    private LiveMonitor(Game game, AgentToolsSetup setup, bool hudVisible) : base(game)
     {
         _metrics = setup.CustomMetrics;
         _notes = setup.Notes;
         _metricRing = new double[Capacity * _metrics.Count];
         _hudShown = HudText.CreateLines(_metrics.Count, _notes);
         _hudPending = HudText.CreateLines(_metrics.Count, _notes);
-        _hudVisible = setup.HudVisible;
+        _hudVisible = hudVisible;
         UpdateOrder = int.MinValue;
         DrawOrder = int.MaxValue;
     }
@@ -62,7 +77,7 @@ internal sealed class LiveMonitor : DrawableGameComponent
         Precompile.Types(typeof(LiveMonitor), typeof(WarmupDetector), typeof(WarmupGate), typeof(FrameSample), typeof(RuntimeCounters),
             typeof(HudText), typeof(HudOverlay), typeof(FrameWindow), typeof(ResourceCounters), typeof(MemoryHistory), typeof(ProcessMemory),
             typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
-        var monitor = new LiveMonitor(game, setup);
+        var monitor = new LiveMonitor(game, setup, hudVisible: setup.HudVisible);
         game.Components.Add(monitor);
         monitor.StartWatchdog(GameHooks.Bind(game));
         if (!setup.RecordSessions || Sessions.Create(Sessions.GameName(game), DateTime.Now) is not { } folder)
@@ -171,7 +186,8 @@ internal sealed class LiveMonitor : DrawableGameComponent
                 (_hudShown, _hudPending) = (_hudPending, _hudShown);
                 _hudRefreshedAt = wall;
             }
-            _hud.Draw(_hudShown, wall);
+            var panel = _hud.Draw(_hudShown, wall);
+            HudBounds = HudBounds.IsEmpty ? panel : Rectangle.Union(HudBounds, panel);
         }
 
         // Exclude the tools' own work since the sample: the HUD, and the process-memory read where it allocates.

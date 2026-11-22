@@ -26,7 +26,7 @@ internal sealed partial class SheetTools(Workspace workspace)
     [Description("""
         Makes another contact sheet from a capture's saved frames without re-running the game: zoom into a
         moment (a shorter time range, more frames) or an effect (a crop) after looking at capture's sheet,
-        or compare it with a baseline capture (against). Tiles are labeled with frame number and game time;
+        or compare it with a baseline capture. Tiles are labeled with frame number and game time;
         small crops are enlarged.
         """)]
     public CallToolResult ContactSheet(
@@ -42,20 +42,22 @@ internal sealed partial class SheetTools(Workspace workspace)
         int columns = 4,
         [Description("Region of each frame to show, 'x,y,width,height' in frame pixels.")]
         string? crop = null,
-        [Description(SheetOptions.AgainstDescription)]
-        string? against = null)
+        [Description(SheetOptions.BaselineDescription)]
+        string? baseline = null,
+        [Description(SheetOptions.DiffDescription)]
+        bool diff = true)
     {
-        var options = new SheetOptions { From = from, To = to, Count = count, Columns = columns, Crop = crop, Against = against };
+        var options = new SheetOptions { From = from, To = to, Count = count, Columns = columns, Crop = crop, Baseline = baseline, Diff = diff };
         var sheet = Make(workspace, workspace.ResolveCapture(capture), options);
         return new CallToolResult { Content = [new TextContentBlock { Text = sheet.Caption }, sheet.Image] };
     }
 
     internal sealed record Sheet(string Caption, ImageContentBlock Image);
 
-    /// <summary>Builds and saves a sheet from <paramref name="folder"/>'s saved frames, or a comparison with <see cref="SheetOptions.Against"/>.</summary>
+    /// <summary>Builds and saves a sheet from <paramref name="folder"/>'s saved frames, or a comparison with <see cref="SheetOptions.Baseline"/>.</summary>
     internal static Sheet Make(Workspace workspace, string folder, SheetOptions options)
     {
-        var comparing = options.Against is not null;
+        var comparing = options.Baseline is not null;
         var (defaultCount, maxCount) = comparing ? (6, MaxComparedFrames) : (12, MaxTiles);
         var count = options.Count ?? defaultCount;
         if (count < 1 || count > maxCount)
@@ -81,7 +83,7 @@ internal sealed partial class SheetTools(Workspace workspace)
             return new Sheet(caption, ImageContentBlock.FromBytes(png, "image/png"));
         }
 
-        var baseline = workspace.ResolveCapture(options.Against!);
+        var baseline = workspace.ResolveCapture(options.Baseline!);
         var baselineFps = ReadFps(baseline);
         if (baselineFps != fps)
             throw new ToolException(string.Create(CultureInfo.InvariantCulture,
@@ -93,15 +95,19 @@ internal sealed partial class SheetTools(Workspace workspace)
 
         var pairs = Imaging.ContactSheet.PickEvenly(shared, count).Select(t => (A: baselineFrames[t.Frame], B: t)).ToList();
         var changed = new double[pairs.Count];
-        var comparison = Imaging.ContactSheet.BuildComparison(pairs, region, Font.Value, changed);
+        var hud = Crop.Union(ReadHud(baseline), ReadHud(folder));
+        var comparison = Imaging.ContactSheet.BuildComparison(pairs, region, Font.Value, changed, options.Diff, hud);
         var comparisonName = string.Create(CultureInfo.InvariantCulture,
-            $"vs-{Path.GetFileName(baseline)}_f{pairs[0].B.Frame}-f{pairs[^1].B.Frame}") + suffix;
+            $"vs-{Path.GetFileName(baseline)}_f{pairs[0].B.Frame}-f{pairs[^1].B.Frame}") + (options.Diff ? "" : "_nodiff") + suffix;
         var comparisonPng = Save(folder, comparisonName, comparison, out var comparisonPath);
 
         var text = new StringBuilder()
             .Append(CultureInfo.InvariantCulture, $"Comparison {workspace.Display(comparisonPath)} ({comparison.Width}x{comparison.Height}). ")
-            .Append(CultureInfo.InvariantCulture, $"A = {workspace.DisplayCapture(baseline)}, B = {workspace.DisplayCapture(folder)}. Each row: A | B | changed pixels in red, ")
-            .Append("brighter for larger changes; any change counts, since the same build and arguments draw the same frames.\n")
+            .Append(CultureInfo.InvariantCulture, $"A = {workspace.DisplayCapture(baseline)}, B = {workspace.DisplayCapture(folder)}. ")
+            .Append(options.Diff ? "Each row: A | B | changed pixels in red, brighter for larger changes. " : "Each row: A | B. ")
+            .Append("Any changed pixel counts, since the same build and arguments draw the same frames.")
+            .Append(hud is { } h ? string.Create(CultureInfo.InvariantCulture, $" The HUD's area ({h.X},{h.Y},{h.Width},{h.Height}{(options.Diff ? ", blue" : "")}) isn't compared.") : "")
+            .Append('\n')
             .AppendJoin(", ", pairs.Select((p, i) => string.Create(CultureInfo.InvariantCulture,
                 $"f{p.B.Frame} {p.B.Seconds:0.000}s {Imaging.ContactSheet.ChangedLabel(changed[i])}")));
         var onlyInB = saved.Count - shared.Count;
@@ -130,6 +136,16 @@ internal sealed partial class SheetTools(Workspace workspace)
         var png = Png.Encode(image);
         File.WriteAllBytes(path, png);
         return png;
+    }
+
+    /// <summary>The area a capture's HUD covered (summary.json's <c>hud.region</c>), or null if it had none.</summary>
+    internal static Crop? ReadHud(string folder)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, "summary.json")));
+        if (!json.RootElement.TryGetProperty("hud", out var hud) || !hud.TryGetProperty("region", out var region)
+            || region.GetArrayLength() != 4 || region[2].GetInt32() <= 0 || region[3].GetInt32() <= 0)
+            return null;
+        return new Crop(region[0].GetInt32(), region[1].GetInt32(), region[2].GetInt32(), region[3].GetInt32());
     }
 
     internal static double ReadFps(string folder)

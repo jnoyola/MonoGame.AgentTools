@@ -31,7 +31,12 @@ pruned to the 10 most recent (profiles separately); give a capture a `name` to k
 - `error.txt`: only when the capture failed.
 
 To see a moment more closely, call contact_sheet with a time range and crop instead of capturing again.
-To compare with a baseline capture, pass `sheet: { against: "<name>" }` (see topic contact-sheets).
+To compare with a baseline capture, pass `sheet: { baseline: "<name>" }` (see topic contact-sheets).
+
+`hud: true` draws the HUD into the frames, as the user sees it in play: to look at it, or to reproduce
+what the user describes with it on. Its numbers are wall-clock measurements, so summary.json's
+`hud.region` differs between runs and comparisons leave it out; in a capture its frame times show how
+fast the capture ran, and in a profile they're paced as play is. It also adds its own draws.
 
 profile runs the same way with `--agenttools-profile`, paced to the step in real time as a player's frames
 are, and saves no frames, so its frame times and allocations are the game's (topic performance). It takes

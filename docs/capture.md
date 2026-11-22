@@ -26,8 +26,8 @@ For captures to match, the game has to cooperate:
 
 - Seed random number generators (`new Random(1234)`), or derive them from game time.
 - Take time from `GameTime`, not `Stopwatch` or `DateTime`.
-- Don't draw wall-clock values (an FPS counter) in the frame; the HUD isn't drawn in captures for this
-  reason.
+- Don't draw wall-clock values (an FPS counter) in the frame. The HUD is drawn in captures only with
+  `--agenttools-hud`, and comparisons leave out its area, which the summary records.
 
 Pixels can still differ slightly across GPUs and drivers, so compare captures from the same machine.
 
@@ -50,6 +50,7 @@ are an error.
 | `--agenttools-size <WxH>` \| `native` | `1280x720` | Same framing on every machine |
 | `--agenttools-save all\|none\|every:N\|1,30,60` | `all` | Which frames to write; capture only |
 | `--agenttools-jit-names` | off | Name the methods compiled during each hitch. It allocates on another thread and slows the frames that compile, so it's off unless a hitch needs explaining |
+| `--agenttools-hud` | off | Draw the HUD into the frames, as in play. Its area (`hud.region` in `summary.json`) differs between runs, and the draw counts and frame times include it |
 
 Each MCP parameter that reaches the game is the camelCase form of its flag: `duration`, `input`,
 `timing`, `fps`, `size`, `save`, `jitNames`. Any other arguments are left for your game, so its own

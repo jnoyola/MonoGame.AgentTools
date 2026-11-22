@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGame.AgentTools.Diagnostics;
 using MonoGame.AgentTools.Imaging;
 using MonoGame.AgentTools.Input;
+using MonoGame.AgentTools.Live;
 using MonoGame.AgentTools.Runtime;
 using MonoGame.AgentTools.Timing;
 
@@ -25,7 +26,8 @@ internal static class CaptureRunner
     private const int SheetTiles = 12;
     private const string FramesFolder = "frames";
 
-    public static void RunAndExit(Game game, CommandLineOptions options, AgentToolsSetup setup)
+    /// <summary>Runs the capture or profile and exits; <paramref name="hud"/> draws the HUD into the frames, with <c>--agenttools-hud</c>.</summary>
+    public static void RunAndExit(Game game, CommandLineOptions options, AgentToolsSetup setup, LiveMonitor? hud = null)
     {
         CaptureInputs inputs;
         try
@@ -44,7 +46,7 @@ internal static class CaptureRunner
         int exitCode = 0;
         try
         {
-            Run(game, options, setup, inputs);
+            Run(game, options, setup, inputs, hud);
         }
         catch (Exception e)
         {
@@ -56,7 +58,7 @@ internal static class CaptureRunner
         Environment.Exit(exitCode);
     }
 
-    private static void Run(Game game, CommandLineOptions options, AgentToolsSetup setup, CaptureInputs inputs)
+    private static void Run(Game game, CommandLineOptions options, AgentToolsSetup setup, CaptureInputs inputs, LiveMonitor? hud)
     {
         var metrics = setup.CustomMetrics;
         var outDir = options.OutputDirectory!;
@@ -213,6 +215,14 @@ internal static class CaptureRunner
         if (reader.FallbackReason is { } fallback)
             notes.Add($"Frame readback allocates ({fallback}).");
         var sections = new Dictionary<string, object> { ["timing"] = TimingSection(clock, outDir, timingPath) };
+        if (hud is not null)
+        {
+            var area = hud.HudBounds;
+            sections["hud"] = new Dictionary<string, object> { ["region"] = new[] { area.X, area.Y, area.Width, area.Height } };
+            notes.Add(string.Create(CultureInfo.InvariantCulture,
+                $"The HUD is drawn, in {area.X},{area.Y},{area.Width},{area.Height}: its numbers are wall-clock measurements, so that area differs between runs, " +
+                $"and the draw counts and frame times include it.{(profile ? "" : " Its frame times show how fast the capture ran, not the game; a profile is paced as play is.")}"));
+        }
         if (playback is not null)
         {
             sections["input"] = InputSection(playback, script!, options.InputPath!, outDir);

@@ -212,7 +212,7 @@ public class ServerTests
                     image.Pixels.AsSpan((10 * 64 + 20) * 3, 3).Fill(f == 2 ? (byte)255 : (byte)46);
             }, 1, 2, 3, 4);
 
-            var sheet = SheetTools.Make(workspace, after, new SheetOptions { Against = "before" });
+            var sheet = SheetTools.Make(workspace, after, new SheetOptions { Baseline = "before" });
 
             Assert.Contains("f1 0.017s same, f2 0.033s diff 0.04%, f3 0.050s diff 0.04%", sheet.Caption, StringComparison.Ordinal);
             Assert.Contains("1 frames in range were saved only in B", sheet.Caption, StringComparison.Ordinal);
@@ -229,8 +229,21 @@ public class ServerTests
             var unchanged = ((144 + 2 + 30 * 4) * image.Width + 2 * (256 + 2) + 40 * 4) * 3;
             Assert.Equal(40 / 3, image.Pixels[unchanged]);                                   // dimmed B elsewhere
 
-            Assert.Throws<ToolException>(() => SheetTools.Make(workspace, after, new SheetOptions { Against = "missing" }));
-            Assert.Throws<ToolException>(() => SheetTools.Make(workspace, after, new SheetOptions { Against = "before", Count = 13 }));
+            Assert.Throws<ToolException>(() => SheetTools.Make(workspace, after, new SheetOptions { Baseline = "missing" }));
+            Assert.Throws<ToolException>(() => SheetTools.Make(workspace, after, new SheetOptions { Baseline = "before", Count = 13 }));
+
+            // Without diff, rows are A and B only.
+            var plain = Png.Decode(SheetTools.Make(workspace, after, new SheetOptions { Baseline = "before", Diff = false }).Image.DecodedData.ToArray());
+            Assert.Equal(2 * 256 + 2, plain.Width);
+
+            // A HUD over the changed pixel in either capture leaves its area out: the frame counts as the same, shown in blue.
+            File.WriteAllText(Path.Combine(after, "summary.json"), """{ "fps": 60, "hud": { "region": [16, 8, 8, 4] } }""");
+            var masked = SheetTools.Make(workspace, after, new SheetOptions { Baseline = "before" });
+            Assert.Contains("f2 0.033s same, f3 0.050s same", masked.Caption, StringComparison.Ordinal);
+            Assert.Contains("The HUD's area (16,8,8,4, blue) isn't compared.", masked.Caption, StringComparison.Ordinal);
+            var maskedImage = Png.Decode(masked.Image.DecodedData.ToArray());
+            Assert.Equal([20, 40, 110], maskedImage.Pixels[changed..(changed + 3)]);
+            Assert.Equal(40 / 3, maskedImage.Pixels[unchanged]);
         }
         finally
         {

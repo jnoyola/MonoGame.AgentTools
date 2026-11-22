@@ -103,7 +103,7 @@ internal sealed record CommandLineOptions
     public static readonly IReadOnlyList<string> Entries = ["capture", "profile"];
 
     /// <summary>The options a batch run takes after its entry flag.</summary>
-    public static readonly IReadOnlyList<string> Options = ["duration", "fps", "size", "save", "input", "timing", "jit-names"];
+    public static readonly IReadOnlyList<string> Options = ["duration", "fps", "size", "save", "input", "timing", "jit-names", "hud"];
 
     public RunMode Mode { get; init; }
     /// <summary>The batch run's output folder; null in live play.</summary>
@@ -117,6 +117,8 @@ internal sealed record CommandLineOptions
     /// <summary>Frames written as PNGs; a profile writes none.</summary>
     public FrameSelection Save { get; init; } = FrameSelection.All;
     public bool JitNames { get; init; }
+    /// <summary>Draw the HUD into the frames, as the player sees it. Its numbers are wall-clock measurements, so the frames differ between runs where it is.</summary>
+    public bool Hud { get; init; }
     /// <summary>An <c>.input</c> script to play.</summary>
     public string? InputPath { get; init; }
     /// <summary>How frames are timed; null is fixed, or the <c>.timing</c> file beside <see cref="InputPath"/>.</summary>
@@ -155,6 +157,7 @@ internal sealed record CommandLineOptions
                 "input" => options with { InputPath = Path.GetFullPath(Value()) },
                 "timing" => ParseTiming(options, Value()),
                 "jit-names" => options with { JitNames = true },
+                "hud" => options with { Hud = true },
                 _ => throw new ArgumentException($"Unknown option {arg}."),
             };
             if (Options.Contains(name))
@@ -178,7 +181,7 @@ internal sealed record CommandLineOptions
         "Usage: --agenttools-capture <dir> | --agenttools-profile <dir>, then any of " +
         "--agenttools-duration <3s|150f> --agenttools-input <file.input> --agenttools-timing fixed|real|<file.timing> " +
         "--agenttools-fps <n> --agenttools-size <WxH>|native --agenttools-save all|none|every:N|<f1,f2,...> (capture only) " +
-        "--agenttools-jit-names. Without an entry flag the game runs live.";
+        "--agenttools-jit-names --agenttools-hud. Without an entry flag the game runs live.";
 
     private static CommandLineOptions Enter(CommandLineOptions options, RunMode mode, string directory)
     {

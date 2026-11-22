@@ -63,7 +63,7 @@ capture or a [session](#recording) to replay its input:
 
 ```json
 { "input": "f60 Space down\nf75 Space up", "name": "jump" }
-{ "input": "jump", "name": "jump-after-fix", "sheet": { "against": "jump" } }
+{ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } }
 ```
 
 Without `duration`, the capture runs until 1 s after the last event, to show the reaction to it. The

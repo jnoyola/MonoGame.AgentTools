@@ -66,4 +66,5 @@ so growth that takes minutes shows up. See [Live play](live.md#sessions).
 The tools compile their own per-frame code before measuring, so they never show up as a first-use cost.
 Your game can do the same by running its real paths once during loading. For example, `SpriteBatch`
 grows its buffers the first time a frame draws more sprites than before, so draw your largest frame once,
-invisibly, in `LoadContent`.
+invisibly, in `LoadContent`. [MonoGame findings](monogame-findings.md) lists the first-use costs in
+MonoGame itself that every game hits, such as the first key press, with the fix for each.
