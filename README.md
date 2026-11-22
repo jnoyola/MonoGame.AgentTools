@@ -9,7 +9,7 @@ game, then iterates autonomously.
 
 <div align="center">
 <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em><br>
-<img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges">
+<a href="samples/one-shot"><img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges"></a>
 <details>
 <summary><em>Prompt</em></summary>
 <div align="left">
