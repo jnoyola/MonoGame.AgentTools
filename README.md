@@ -8,13 +8,13 @@ Close the loop on agentic game dev. Your coding agent builds, plays, captures an
 game, then iterates autonomously.
 
 <p align="center">
-  <img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges"><br>
-  <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em>
+  <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em><br>
+  <img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges">
 </p>
 
 <div align="center">
 <details>
-<summary>The prompt</summary>
+<summary><em>Prompt</em></summary>
 <div align="left">
 
 > Make a complete, polished top-down action game in this MonoGame project. You play as an elf archer
