@@ -61,9 +61,9 @@ MyGame --agenttools-capture out/jump --agenttools-input jump.input
 Through MCP, `capture` and `profile` take `input` as the script itself, a file, or the name of a
 capture or a [session](#recording) to replay its input:
 
-```json
-{ "input": "f60 Space down\nf75 Space up", "name": "jump" }
-{ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } }
+```
+capture({ "input": "f60 Space down\nf75 Space up", "name": "jump" })
+capture({ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } })
 ```
 
 Without `duration`, the capture runs until 1 s after the last event, to show the reaction to it. The
@@ -76,8 +76,8 @@ Every time you play, the game records what it read to `.agenttools/sessions/<Gam
 (see [Live play](live.md#sessions)). It's written as you go: a crash keeps it, and even a killed process
 loses at most the last second. The agent replays it by the folder's name:
 
-```json
-{ "input": "MyGame-20261121-093000", "name": "boss-before-fix" }
+```
+capture({ "input": "MyGame-20261121-093000", "name": "boss-before-fix" })
 ```
 
 From a terminal, pass the file: `--agenttools-input .agenttools/sessions/MyGame-20261121-093000/session.input`.
@@ -104,9 +104,9 @@ to the step the way vsync would, so the times are your game's own frame-to-frame
 capture covers the game time asked for. It keeps them in `capture.timing`, so a run that shows a bug can
 be replayed frame for frame:
 
-```json
-{ "timing": "real", "duration": "10s", "name": "jitter" }
-{ "timing": "jitter", "name": "jitter-replay" }
+```
+capture({ "timing": "real", "duration": "10s", "name": "jitter" })
+capture({ "timing": "jitter", "name": "jitter-replay" })
 ```
 
 A session of a variable-step game also has `session.timing` beside its `.input`; replaying the input

@@ -104,16 +104,16 @@ so sheets stay within that.
 
 Examples:
 
-```json
-{ "duration": "2s" }
-{ "duration": "2s", "sheet": { "from": 0.4, "to": 0.9, "count": 12, "crop": "400,150,480,360" } }
-{ "duration": "2s", "gameArgs": ["--level", "3"], "name": "before" }
-{ "duration": "2s", "name": "after", "sheet": { "baseline": "before" } }
-{ "input": "f30 Space down\nf45 Space up", "name": "jump" }
-{ "input": "jump", "name": "jump-fixed", "sheet": { "baseline": "jump" } }
-{ "input": "MyGame-20261121-093000", "name": "boss" }
-{ "timing": "real", "duration": "10s", "name": "jitter" }
-{ "duration": "2s", "hud": true, "save": "60" }
+```
+capture({ "duration": "2s" })
+capture({ "duration": "2s", "sheet": { "from": 0.4, "to": 0.9, "count": 12, "crop": "400,150,480,360" } })
+capture({ "duration": "2s", "gameArgs": ["--level", "3"], "name": "before" })
+capture({ "duration": "2s", "name": "after", "sheet": { "baseline": "before" } })
+capture({ "input": "f30 Space down\nf45 Space up", "name": "jump" })
+capture({ "input": "jump", "name": "jump-fixed", "sheet": { "baseline": "jump" } })
+capture({ "input": "MyGame-20261121-093000", "name": "boss" })
+capture({ "timing": "real", "duration": "10s", "name": "jitter" })
+capture({ "duration": "2s", "hud": true, "save": "60" })
 ```
 
 ### profile
@@ -124,10 +124,10 @@ options as `capture` except `save` and `sheet`, and runs `8s` by default; under 
 not open, and the notes say so. It returns the brief and the game's own 12-frame `sheet.png`, to confirm
 what ran.
 
-```json
-{ }
-{ "duration": "30s", "gameArgs": ["--level", "3"] }
-{ "input": "MyGame-20261121-093000", "name": "boss-perf" }
+```
+profile({ })
+profile({ "duration": "30s", "gameArgs": ["--level", "3"] })
+profile({ "input": "MyGame-20261121-093000", "name": "boss-perf" })
 ```
 
 ### contact_sheet
@@ -151,10 +151,13 @@ in red, brighter for larger changes, with the percentage changed. Any changed pi
 same build and arguments draw the same frames. A HUD drawn with `hud` in either capture is left out and
 shows in blue, since its numbers differ from run to run.
 
+```
+contact_sheet({ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.9, "to": 1.6, "count": 3, "crop": "240,40,800,600" })
+```
+
 ![Three rows comparing a floaty and a heavy earth slam, with the changed pixels on the rocks](images/earth-slam-comparison.png)
 
-*A floaty Earth Slam (A) against the shipped one (B), from `{ "capture": "slam-heavy", "baseline":
-"slam-floaty", "from": 0.9, "to": 1.6, "count": 3, "crop": "240,40,800,600" }`. Only the rocks changed.*
+*A floaty Earth Slam (A) against the shipped one (B). Only the rocks changed.*
 
 ### gif
 
@@ -177,21 +180,23 @@ Playback keeps game time: at 30 fps the frame delays run 3, 4, 3 hundredths of a
 colors, so smooth gradients are dithered and look slightly grainy; judge fine color from the PNG frames.
 GIFs are saved in the capture's `gifs/` folder.
 
-```json
-{ "capture": "after", "from": 0.2, "to": 1.5, "speed": 0.5 }
-{ "capture": "after", "baseline": "before", "crop": "370,110,540,500", "width": 300 }
-{ "capture": "after", "baseline": "before", "diff": true, "width": 300 }
+```
+gif({ "capture": "after", "from": 0.2, "to": 1.5, "speed": 0.5 })
+gif({ "capture": "after", "baseline": "before", "crop": "370,110,540,500", "width": 300 })
+gif({ "capture": "after", "baseline": "before", "diff": true, "width": 300 })
 ```
 
 `diff` is off by default because people judge motion best from A and B alone. When a change is small
 (the comparison sheet reports a small fraction of pixels changed, but not none), it's easy to miss in
 motion, and the third panel shows where A and B differ, brighter red for larger changes:
 
+```
+gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "fps": 20, "crop": "390,190,500,375", "width": 300 })
+```
+
 ![Two earth slams side by side, the crack soft-edged in A and crisp in B, with a third panel marking the change in red](images/earth-slam-diff.gif)
 
-*`{ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "fps": 20,
-"crop": "390,190,500,375", "width": 300 }`: after "make the crack's edges harder", only the crack decal
-changes, about 1 to 6% of the pixels.*
+*After "make the crack's edges harder", only the crack decal changes, about 1 to 6% of the pixels.*
 
 ### guide
 

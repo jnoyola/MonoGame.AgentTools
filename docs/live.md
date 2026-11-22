@@ -21,7 +21,7 @@ The HUD shows, in the top-right corner:
 - `GraphicsDevice.Metrics` for the game's own draws
 - your notes and custom metrics
 
-Yellow and red mark what needs attention. Backtick (`` ` ``) toggles it, whether `ShowHud` is on or not.
+Yellow and red mark what needs attention. Backtick (<kbd>&#96;</kbd>) toggles it, whether `ShowHud` is on or not.
 The HUD's own drawing, allocations and JIT are left out of the measurements, and it allocates nothing per
 frame. `ShowHud` applies to live play only. A capture or profile draws the HUD only when asked
 (`--agenttools-hud`, or `hud` in the MCP tools), since its wall-clock values make that area differ
