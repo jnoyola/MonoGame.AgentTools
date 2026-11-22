@@ -117,8 +117,7 @@ screen and how it moves:
 ![Twelve frames of the earth slam, each labeled with its frame number and game time: the ground cracks, a dust ring rolls out, rocks are thrown up and land](docs/images/earth-slam-sheet.png)
 
 *The sheet that `capture` call returned: 12 frames picked evenly across the 2.5 s run, each labeled with
-its frame and game time. The ground cracks in two jolts, then erupts: a dust ring rolls out, and rocks
-are thrown up and land.*
+its frame and game time.*
 
 `contact_sheet` zooms in (a shorter time range, a crop) without running the game again. With `baseline`,
 it compares two captures: each row shows the same frame from both and every pixel that changed, in red.
