@@ -890,6 +890,16 @@ The options grew one flag at a time, and two runs needed several flags together:
   names, not meanings, so a developer bumps by hand when an option keeps its name but changes what it
   accepts; the check never refuses a bump.
 
+## Unknown tool arguments (v0.4)
+
+- **Unknown arguments are an error.** The SDK binds a tool's arguments by name and drops the rest, so
+  a misspelled or renamed parameter (`frames` for `duration`, `against` for `baseline`) ran the tool
+  with its default, which looked like success. A call-tool filter compares the arguments, and the
+  fields of object arguments such as `sheet`, with the tool's input schema and returns an error result
+  naming the unknown ones and the tool's own, so the agent can correct the call. JSON Schema's
+  `additionalProperties: false` and OpenAI's strict function calling make the same choice; the result
+  is a tool error rather than a protocol error, as MCP asks for input validation, so the model sees it.
+
 ## Open questions
 
 - Confirm the VS Code extension honours `.mcp.json` from the repo root when the workspace is a subfolder.
