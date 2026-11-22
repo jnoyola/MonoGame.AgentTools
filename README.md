@@ -1,5 +1,9 @@
 # MonoGame.AgentTools
 
+[![NuGet](https://img.shields.io/nuget/v/MonoGame.AgentTools)](https://www.nuget.org/packages/MonoGame.AgentTools)
+[![CI](https://github.com/jnoyola/MonoGame.AgentTools/actions/workflows/ci.yml/badge.svg)](https://github.com/jnoyola/MonoGame.AgentTools/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
 game, then iterates autonomously.
 
@@ -7,6 +11,11 @@ game, then iterates autonomously.
   <img src="docs/images/goblin-gold.gif" width="800" alt="A top-down game drawn in code: an elf archer shoots goblins that burst into coins and gems, the goblin chief arrives, and the elf dashes and fires a fan of arrows as the chief charges"><br>
   <em>One-shotted by Claude Opus 5.5 Medium, 18 minutes, $3.76 (API cost).</em>
 </p>
+
+<div align="center">
+<details>
+<summary>The prompt</summary>
+<div align="left">
 
 > Make a complete, polished top-down action game in this MonoGame project. You play as an elf archer
 > shooting a bow at goblins, and each goblin bursts into treasure when it dies. The goblins keep coming
@@ -18,27 +27,31 @@ game, then iterates autonomously.
 > decide and note the choice in a short README. Before you finish, make sure it builds, runs and plays
 > well.
 
+</div>
+</details>
+</div>
+
 Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
 hands and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
 measure.
 
 **For the agent:**
 
-- **Capture.** The game's real `Update` and `Draw` run at a fixed time step with a hidden window, so the
+- **[Capture](#capture).** The game's real `Update` and `Draw` run at a fixed time step with a hidden window, so the
   same build, arguments and input produce the same frames every time.
-- **Contact sheets.** Frames side by side in one labeled image, the way animation and VFX reviews judge
+- **[Contact sheets](#contact-sheets).** Frames side by side in one labeled image, the way animation and VFX reviews judge
   timing and spacing. Two captures compare frame by frame, with every changed pixel marked.
-- **Playing the game.** Keyboard, mouse and gamepad input from a script, or a human's recording replayed
+- **[Playing the game](#playing-the-game).** Keyboard, mouse and gamepad input from a script, or a human's recording replayed
   exactly.
-- **Performance.** Frame times, warm-up, allocations, GC, memory growth, JIT, draw calls and hitches,
+- **[Performance](#performance).** Frame times, warm-up, allocations, GC, memory growth, JIT, draw calls and hitches,
   each with a verdict, plus numbers from your own game.
 
 **For the human:**
 
-- **HUD.** The same measurements in the corner while you play.
-- **GIFs.** Agents can't watch an animation; you can. Any capture becomes a GIF, and two captures play
+- **[HUD](#hud).** The same measurements in the corner while you play.
+- **[GIFs](#gifs).** Agents can't watch an animation; you can. Any capture becomes a GIF, and two captures play
   side by side.
-- **Recording.** Play the game, and the agent replays exactly what you pressed.
+- **[Recording](#recording).** Play the game, and the agent replays exactly what you pressed.
 
 Debug builds only by default. In other builds the calls are compiled out and the assembly is left out
 of the output. The tools allocate nothing per frame.
@@ -73,8 +86,8 @@ of the output. The tools allocate nothing per frame.
    Commit it, and every agent that reads `.mcp.json` (Claude Code, for example) can use the tools. See
    [MCP server](docs/mcp.md) for VS Code, Cursor and other clients.
 
-Then ask your agent something like *"The earth slam feels floaty. Make the rocks land harder, then show
-me a before and after GIF."* The rest of this page is what it works with.
+Then ask your agent something like *"Make the hits feel punchier, then show me a before and after
+GIF."* The rest of this page is what it works with.
 
 Your `Update` and `Draw` overrides should call `base.Update(gameTime)` and `base.Draw(gameTime)`, as the
 MonoGame templates do.
@@ -86,8 +99,8 @@ MonoGame templates do.
 The agent calls `capture`. The tool builds the game, runs it and returns a short reading of the run and
 a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera:
 
-```json
-{ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" }
+```
+capture({ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" })
 ```
 
 ```text
@@ -124,25 +137,29 @@ with half the gravity and a slower launch to the same height, and B is the fix. 
 by 1.25 s, B's have landed while A's still hang in the air. You see the same comparison as a
 [side-by-side GIF](#gifs).
 
+After one `capture` of each version:
+
+```
+contact_sheet({ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.9, "to": 1.6, "count": 3, "crop": "240,40,800,600" })
+```
+
 ![Three rows at 0.9, 1.25 and 1.6 seconds: the floaty slam, the heavier one, and the changed pixels in red, all on the rocks](docs/images/earth-slam-comparison.png)
 
-*`contact_sheet` with `{ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.9, "to": 1.6,
-"count": 3, "crop": "240,40,800,600" }`, after one `capture` of each version. Each row is A, B, then
-their changed pixels.*
+*Each row is A, B, then their changed pixels.*
 
 ### Playing the Game
 
 A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes:
 
-```json
-{ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" }
+```
+capture({ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" })
 ```
 
 Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control in MonoGame's own names,
 and what it does. `input` also takes a file, or a capture's name to replay its input after a fix:
 
-```json
-{ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } }
+```
+capture({ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } })
 ```
 
 It replays [the sessions you play](#recording) the same way, frame for frame. Your game keeps calling
@@ -155,8 +172,8 @@ For numbers that describe the game rather than the capture, the agent calls `pro
 paced in real time, as you play it, saving no frames, for 8 seconds by default. It takes the same
 `input`, so it can profile a scripted scene or a session you played:
 
-```json
-{ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] }
+```
+profile({ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] })
 ```
 
 ```text
@@ -187,7 +204,7 @@ Backtick toggles it. Each session's stats are kept too; see [Live play](docs/liv
 
 ![The Earth Slam with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game's particle count](docs/images/hud.png)
 
-*The HUD over the Earth Slam, as you see it in play. The agent can capture it too, with `hud: true`.*
+*The HUD over the Earth Slam, as you see it in play. The agent can capture it too, with `capture({ "hud": true })`.*
 
 ### GIFs
 
@@ -201,10 +218,13 @@ its first 1.9 s at 30 fps.*
 `baseline` plays two versions side by side, the same comparison the agent read as a
 [contact sheet](#contact-sheets):
 
+```
+gif({ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.3, "to": 2.3, "crop": "240,40,800,600", "width": 400 })
+```
+
 ![The floaty and heavy earth slams playing side by side](docs/images/earth-slam-ab.gif)
 
-*`gif` with `{ "capture": "slam-heavy", "baseline": "slam-floaty", "from": 0.3, "to": 2.3, "crop":
-"240,40,800,600", "width": 400 }`: the floaty slam on the left, the heavy one on the right, at 30 fps.*
+*The floaty slam on the left, the heavy one on the right, at 30 fps.*
 
 ### Recording
 
@@ -247,7 +267,8 @@ Set it to `true` to use the tools in Release (the MCP `capture` tool takes `conf
 
 ## Requirements
 
-- **Your game:** MonoGame 3.8.5 DesktopGL, targeting .NET 8 or later.
+- **Your game:** MonoGame 3.8.5 or later, DesktopGL (tested on 3.8.5 and 3.8.6), targeting .NET 8 or
+  later.
 - **Your machine:** the .NET 10 SDK or later, which runs the MCP server through `dotnet dnx`. It installs
   beside older SDKs and doesn't change what your game targets.
 - Tested on Windows. CI builds and runs the unit tests on Linux and macOS too, but captures haven't been
