@@ -184,14 +184,14 @@ GIFs are saved in the capture's `gifs/` folder.
 ```
 
 `diff` is off by default because people judge motion best from A and B alone. When a change is small
-(the comparison sheet reports a small fraction of pixels changed, but not none), A and B look alike in
-motion, and the third panel shows where they differ, brighter red for larger changes:
+(the comparison sheet reports a small fraction of pixels changed, but not none), it's easy to miss in
+motion, and the third panel shows where A and B differ, brighter red for larger changes:
 
-![Two earth slams side by side that look alike, with a third panel tracing the crack's outline in red](images/earth-slam-diff.gif)
+![Two earth slams side by side, the crack soft-edged in A and crisp in B, with a third panel marking the change in red](images/earth-slam-diff.gif)
 
-*`{ "capture": "slam-edge-soft", "baseline": "slam-edge-hard", "diff": true, "from": 0, "to": 2, "fps": 20,
-"crop": "390,190,500,375", "width": 300 }`: only the crack decal's edge is softer in B, which changes
-about 1 to 2% of the pixels.*
+*`{ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "fps": 20,
+"crop": "390,190,500,375", "width": 300 }`: after "make the crack's edges harder", only the crack decal
+changes, about 1 to 6% of the pixels.*
 
 ### guide
 
