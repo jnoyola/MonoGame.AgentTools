@@ -57,15 +57,6 @@ start later in the difficulty curve), then:
 - fixed what it saw: spawn warnings left on screen after death, background flowers that looked like
   coins, and kill marks on the grass that looked like holes.
 
-## After the one-shot
-
-The GIF above is the game's own autopilot. Follow-up messages in the same session tuned the autopilot
-(`Bot.cs`) so the clip shows the dash and the volley close together and in the open, and added a
-test-only `--botlog` option to `Game1.cs`. The rest of the game is as the one-shot left it.
-
-In this repository the package reference is `0.2.0` in place of the prerelease build, and the
-generated `.mcp.json` names the same version. Nothing else differs.
-
 ## Run it
 
 With the .NET 11 SDK:
