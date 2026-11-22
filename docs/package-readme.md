@@ -15,7 +15,7 @@ game, then iterates autonomously.
   is left out of the output.
 
 ```xml
-<PackageReference Include="MonoGame.AgentTools" Version="0.1.0" />
+<PackageReference Include="MonoGame.AgentTools" Version="0.2.0" />
 ```
 
 ```csharp

@@ -48,6 +48,28 @@ jobs:
       - run: dotnet build -c ${{ matrix.configuration }}
       - run: dotnet test -c ${{ matrix.configuration }} --no-build
 
+  # The MCP server refuses a game on another minor version, so a change to the options it passes the game
+  # needs a minor bump (see "Versions" in docs/design.md). This compares the library at the PR's base.
+  command-line-contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Build the library here and at the base
+        run: |
+          git worktree add ../base "origin/${{ github.base_ref }}"
+          dotnet build src/MonoGame.AgentTools -c Release
+          dotnet build ../base/src/MonoGame.AgentTools -c Release
+      - run: >-
+          dotnet run tools/CommandLineContract.cs --
+          ../base/artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
+          artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
+
   pack:
     needs: [format, build]
     runs-on: ubuntu-latest
@@ -56,14 +78,15 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      # Tags vX.Y.Z pack that version; other builds get a CI prerelease number.
+      # Tags vX.Y.Z pack that version; other builds get VersionPrefix with a CI prerelease number.
+      # Not named VERSION: MSBuild reads environment variables as properties, and that one would set $(Version).
       - name: Version
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV";
-          else echo "VERSION=0.1.0-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"; fi
-      - run: dotnet pack src/MonoGame.AgentTools -c Release -o out -p:PackageVersion=$VERSION -p:ContinuousIntegrationBuild=true
-      - run: dotnet pack src/MonoGame.AgentTools.Mcp -c Release -o out -p:PackageVersion=$VERSION -p:ContinuousIntegrationBuild=true
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then echo "PACK_VERSION=-p:PackageVersion=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV";
+          else echo "PACK_VERSION=-p:VersionSuffix=ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"; fi
+      - run: dotnet pack src/MonoGame.AgentTools -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
+      - run: dotnet pack src/MonoGame.AgentTools.Mcp -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
       - uses: actions/upload-artifact@v7
         with:
           name: packages
