@@ -33,8 +33,7 @@ public class ServerTests
                 "RunCommand": {{JsonSerializer.Serialize(Path.Combine(bin, "Game.exe"))}},
                 "RunArguments": "",
                 "RunWorkingDirectory": "",
-                "AgentToolsEnabled": "true",
-                "AgentToolsProtocol": "1"
+                "AgentToolsEnabled": "true"
               }
             }
             """;
@@ -45,7 +44,6 @@ public class ServerTests
         Assert.Equal(Path.Combine(bin, "Game.exe"), run.FileName);
         Assert.Equal(bin, run.WorkingDirectory);
         Assert.True(run.ToolsEnabled);
-        Assert.Equal("1", run.Protocol);
         Assert.False(disabled.ToolsEnabled);
     }
 

@@ -6,8 +6,6 @@
   <PropertyGroup>
     <AgentToolsEnabled Condition="'$(AgentToolsEnabled)' == '' and '$(Configuration)' == 'Debug'">true</AgentToolsEnabled>
     <DefineConstants Condition="'$(AgentToolsEnabled)' == 'true'">$(DefineConstants);AGENTTOOLS</DefineConstants>
-    <!-- The command line this library reads; the MCP server refuses a game that reports another. -->
-    <AgentToolsProtocol>1</AgentToolsProtocol>
   </PropertyGroup>
 
   <!--

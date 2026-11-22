@@ -7,13 +7,6 @@ internal static partial class CommandLine
 {
     public const string Prefix = "--agenttools-";
 
-    /// <summary>
-    /// The version of the command line between this server and the library, which the library's build
-    /// targets report as <c>AgentToolsProtocol</c>. Raise both together when an option is added, renamed or
-    /// reinterpreted, so a server refuses a game whose library would misread it.
-    /// </summary>
-    public const int Protocol = 1;
-
     /// <summary>The game's flag for a tool parameter: <c>jitNames</c> is <c>--agenttools-jit-names</c>.</summary>
     public static string Flag(string parameter) => Prefix + UpperLetter().Replace(parameter, m => "-" + char.ToLowerInvariant(m.Value[0]));
 

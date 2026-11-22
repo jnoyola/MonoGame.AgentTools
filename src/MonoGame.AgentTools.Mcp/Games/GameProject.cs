@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -123,9 +121,8 @@ internal sealed partial class GameProject
     /// <summary>
     /// Builds <paramref name="configuration"/> (for <paramref name="framework"/> when the project has
     /// several) and returns how to start the game, after checking that the
-    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise) and speaks
-    /// this server's command line. Without the tools AgentTools.Attach is compiled out, so the game would
-    /// ignore the capture options and never exit. The
+    /// build has the tools (AgentToolsEnabled: on in Debug by default, by property otherwise). Without them
+    /// AgentTools.Attach is compiled out, so the game would ignore the capture options and never exit. The
     /// target is explicit: with -getProperty alone, MSBuild only evaluates the project and builds nothing.
     /// </summary>
     public async Task<RunCommand> BuildAsync(string configuration, string? framework, CancellationToken cancellationToken)
@@ -135,7 +132,7 @@ internal sealed partial class GameProject
             "build", Path, "-c", configuration, "-nologo", "-t:Build",
             .. framework is null ? Array.Empty<string>() : ["-f", framework],
             "-getProperty:RunCommand", "-getProperty:RunArguments", "-getProperty:RunWorkingDirectory", "-getProperty:TargetPath",
-            "-getProperty:AgentToolsEnabled", "-getProperty:AgentToolsProtocol",
+            "-getProperty:AgentToolsEnabled",
         ];
         var result = await ProcessRunner.RunAsync("dotnet", args, workingDirectory: null, TimeSpan.FromMinutes(10), cancellationToken).ConfigureAwait(false);
         if (result.TimedOut)
@@ -156,28 +153,7 @@ internal sealed partial class GameProject
             throw new ToolException(
                 $"MonoGame.AgentTools is disabled in {Name}'s {configuration} build, so it can't be captured. It's on by default in Debug; " +
                 "for another configuration, or if the project turns it off, set <AgentToolsEnabled>true</AgentToolsEnabled>.");
-        CheckProtocol(Name, run.Protocol);
         return run;
-    }
-
-    /// <summary>
-    /// Refuses a game whose library speaks another command line than this server, as a language server
-    /// and its client agree on a protocol version before talking. Without it, a game on an older package
-    /// (or a project reference to an old copy of the source) rejects options it doesn't know, in words
-    /// that contradict the tool's own description.
-    /// </summary>
-    internal static void CheckProtocol(string game, string reported)
-    {
-        var protocol = int.TryParse(reported, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : 0;
-        if (protocol == CommandLine.Protocol)
-            return;
-        var version = typeof(GameProject).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "this server's version";
-        throw new ToolException(protocol < CommandLine.Protocol
-            ? $"{game} builds an older MonoGame.AgentTools than this server ({(protocol == 0 ? "one from before v0.4, which doesn't report its command-line protocol" : $"command-line protocol {protocol}")}; " +
-              $"the server's is {CommandLine.Protocol}), so it would reject or ignore options the tools pass. Update its MonoGame.AgentTools " +
-              $"package to {version}, or if it references the library's source as a project, check that the path points at the current source."
-            : $"{game} builds a newer MonoGame.AgentTools than this server (command-line protocol {protocol}; the server's is " +
-              $"{CommandLine.Protocol}). Update the server to the game's package version.");
     }
 
     internal static RunCommand ParseRunCommand(string buildOutput)
@@ -191,7 +167,7 @@ internal sealed partial class GameProject
         if (workingDirectory.Length == 0)
             workingDirectory = System.IO.Path.GetDirectoryName(target.Length > 0 ? target : command)!;
         var enabled = string.Equals(Get(properties, "AgentToolsEnabled"), "true", StringComparison.OrdinalIgnoreCase);
-        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, enabled, Get(properties, "AgentToolsProtocol"));
+        return new RunCommand(command, Get(properties, "RunArguments"), workingDirectory, enabled);
     }
 
     /// <summary>
@@ -263,5 +239,5 @@ internal sealed partial class GameProject
     private static partial Regex ErrorLine();
 }
 
-/// <summary>How to start a built game (the same properties <c>dotnet run</c> uses), whether it has the tools, and the command-line protocol they speak (empty before v0.4).</summary>
-internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, bool ToolsEnabled, string Protocol);
+/// <summary>How to start a built game (the same properties <c>dotnet run</c> uses), and whether it has the tools.</summary>
+internal sealed record RunCommand(string FileName, string Arguments, string WorkingDirectory, bool ToolsEnabled);

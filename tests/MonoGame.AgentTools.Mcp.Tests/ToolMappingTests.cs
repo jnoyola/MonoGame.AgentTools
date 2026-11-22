@@ -1,7 +1,5 @@
 extern alias Library;
 
-using System.Globalization;
-using System.Xml.Linq;
 using Library::MonoGame.AgentTools;
 using MonoGame.AgentTools.Mcp.Games;
 using MonoGame.AgentTools.Mcp.Tools;
@@ -49,31 +47,5 @@ public class ToolMappingTests
         Assert.Equal("--agenttools-duration", CommandLine.Flag("duration"));
         Assert.Equal("duration expects a length with its unit; jitNames is on",
             CommandLine.AsParameters("--agenttools-duration expects a length with its unit; --agenttools-jit-names is on"));
-    }
-
-    [Fact]
-    public void The_build_targets_report_the_servers_protocol()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        var relative = Path.Combine("src", "MonoGame.AgentTools", "build", "MonoGame.AgentTools.targets");
-        while (!File.Exists(Path.Combine(directory!.FullName, relative)))
-            directory = directory.Parent;
-
-        var targets = XDocument.Load(Path.Combine(directory.FullName, relative));
-
-        Assert.Equal(CommandLine.Protocol.ToString(CultureInfo.InvariantCulture), targets.Descendants("AgentToolsProtocol").Single().Value);
-    }
-
-    [Theory]
-    [InlineData("", "Game builds an older MonoGame.AgentTools than this server (one from before v0.4")]
-    [InlineData("0", "Game builds an older MonoGame.AgentTools than this server (one from before v0.4")]
-    [InlineData("99", "Game builds a newer MonoGame.AgentTools than this server (command-line protocol 99")]
-    public void A_game_on_another_protocol_is_refused_with_what_to_update(string reported, string expected)
-    {
-        GameProject.CheckProtocol("Game", CommandLine.Protocol.ToString(CultureInfo.InvariantCulture));
-
-        var error = Assert.Throws<ToolException>(() => GameProject.CheckProtocol("Game", reported));
-
-        Assert.StartsWith(expected, error.Message, StringComparison.Ordinal);
     }
 }
