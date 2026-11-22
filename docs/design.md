@@ -868,7 +868,7 @@ The options grew one flag at a time, and two runs needed several flags together:
   draws it. Playwright's report likewise offers expected, actual and diff as separate views. The choice
   of defaults is a judgment, not precedent, made by comparing two GIFs: for a large change (a floaty
   against a heavy earth slam) the red covers what A and B already show, and for a small one (a crack
-  decal's edge softened) A and B look alike and the red finds it. So the tools tell agents to turn
+  decal's edges made harder) the change is easy to miss and the red shows where it is. So the tools tell agents to turn
   `diff` on when the sheet reports a small fraction changed but not none.
 
 ## Checks between the agent, the server and the game (v0.4)
