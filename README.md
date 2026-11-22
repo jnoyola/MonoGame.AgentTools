@@ -90,11 +90,7 @@ The agent calls `capture`. The tool builds the game, runs it and returns a short
 a labeled contact sheet. `gameArgs` go to the game itself, here to pick the effect and camera.
 
 **Prompt:** *"Capture the Earth Slam from the front camera."*<br>
-**Agent:**
-
-```
-capture({ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" })
-```
+**Agent:** `capture({ "duration": "150f", "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"], "name": "slam-heavy" })`
 
 ```text
 Captured MyGame.DesktopGL to .agenttools/captures/slam-heavy
@@ -130,11 +126,7 @@ and the red shows where, even in the first jolt, where A and B look alike at a g
 comparison as a [side-by-side GIF](#gifs).
 
 **Prompt:** *"Compare the crack before and after you made its edges harder."*<br>
-**Agent:**
-
-```
-contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from": 0.1, "to": 1.5, "count": 3, "crop": "390,190,500,375" })
-```
+**Agent:** `contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from": 0.1, "to": 1.5, "count": 3, "crop": "390,190,500,375" })`
 
 <p align="center">
   <img src="docs/images/earth-slam-crack-comparison.png" alt="Three rows at 0.1, 0.8 and 1.5 seconds: the crack with soft edges, the same crack with hard edges, and the changed pixels in red, only on the crack"><br>
@@ -146,21 +138,13 @@ contact_sheet({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "from
 A capture can press keys, click the mouse and push gamepad sticks, from a script the agent writes.
 
 **Prompt:** *"Jump, then click the middle of the screen, and show me what happens."*<br>
-**Agent:**
-
-```
-capture({ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" })
-```
+**Agent:** `capture({ "input": "f60 Space down\nf75 Space up\nt1.5 MouseLeft down 640,360", "name": "jump" })`
 
 Each line is when (`f60` is frame 60, `t1.5` is 1.5 s of game time), a control in MonoGame's own names,
 and what it does. `input` also takes a file, or a capture's name to replay its input after a fix.
 
 **Prompt:** *"Fix the jump, then replay the same input and compare."*<br>
-**Agent:**
-
-```
-capture({ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } })
-```
+**Agent:** `capture({ "input": "jump", "name": "jump-after-fix", "sheet": { "baseline": "jump" } })`
 
 It replays [the sessions you play](#recording) the same way, frame for frame. Your game keeps calling
 `Keyboard`, `Mouse` and `GamePad.GetState()` and doesn't change. Captures never read your own cursor or
@@ -173,11 +157,7 @@ paced in real time, as you play it, saving no frames, for 8 seconds by default. 
 `input`, so it can profile a scripted scene or a session you played.
 
 **Prompt:** *"Profile the Earth Slam."*<br>
-**Agent:**
-
-```
-profile({ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] })
-```
+**Agent:** `profile({ "gameArgs": ["--show", "earthslam", "--camera", "front", "--studio"] })`
 
 ```text
 480 frames, paced in real time, fixed 16.6667 ms step (60 fps): 8 s game time, 8.48 s wall, 1280x720
@@ -222,12 +202,8 @@ When a choice is about how something feels in motion, the agent can make a GIF a
 `baseline` plays two versions side by side, and `diff` adds the changed pixels, the same comparison the
 agent read as a [contact sheet](#contact-sheets).
 
-**Prompt:** *"Show me a GIF of the crack before and after, with what changed highlighted."*<br>
-**Agent:**
-
-```
-gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "crop": "390,190,500,375", "width": 320 })
-```
+**Prompt:** *"Show a diff of the effect before and after."*<br>
+**Agent:** `gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "from": 0, "to": 2, "crop": "390,190,500,375", "width": 320 })`
 
 <p align="center">
   <img src="docs/images/earth-slam-crack-ab.gif" alt="The soft-edged and hard-edged cracks playing side by side, with a third panel marking the changed pixels in red"><br>
