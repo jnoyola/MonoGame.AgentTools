@@ -337,7 +337,7 @@ Decisions made while building it, each verified by running:
   startup rather than generating at build: it costs well under a millisecond once, and a unit test
   catches malformed data before release just as a build step would. Pixel font, so `PointClamp` at
   integer scales. License in `THIRD-PARTY-NOTICES.md`, packed with the package.
-- **HUD** (`ShowHud`; backtick toggles; in captures and profiles with `--agenttools-hud` since step 4). Part of the live monitor, so it shows exactly
+- **HUD** (`ShowHud`; backtick (<kbd>&#96;</kbd>) toggles; in captures and profiles with `--agenttools-hud` since step 4). Part of the live monitor, so it shows exactly
   what the stats files record. Drawn after the frame's sample is taken, then the counters are re-read,
   so its draws, allocations and JIT never count against the game (`GraphicsDevice.Metrics` is sampled
   before it draws). It restores the device state `SpriteBatch` changes (blend, depth, rasterizer,

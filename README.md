@@ -72,7 +72,7 @@ of the output. The tools allocate nothing per frame.
    ```
 
    `ShowHud` shows the HUD whenever you run the game. Leave it out to start with the HUD hidden; backtick
-   toggles it either way.
+   (<kbd>&#96;</kbd>) toggles it either way.
 
 3. Build in Debug. The build adds the MCP server to `.mcp.json` at the root of your repository, so every
    agent that reads it (Claude Code, for example) can use the tools; commit it for everyone who clones the
@@ -189,7 +189,7 @@ a per-frame allocation worth fixing. See [Performance](docs/performance.md) for 
 
 With `ShowHud`, the HUD shows the agent's measurements in the corner while you play: frame times,
 allocations, GCs, memory, GPU resources, JIT, the warm-up gates, draw calls and your custom metrics.
-Backtick toggles it. Each session's stats are kept too; see [Live play](docs/live.md).
+Backtick (<kbd>&#96;</kbd>) toggles it. Each session's stats are kept too; see [Live play](docs/live.md).
 
 ![The Earth Slam with the HUD in the top-right corner: frame times, allocations, memory, warm-up gates, draw calls and the game's particle count](docs/images/hud.png)
 
