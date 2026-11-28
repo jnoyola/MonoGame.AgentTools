@@ -1,7 +1,7 @@
 # MonoGame findings
 
 Costs and pitfalls in MonoGame itself that the tools turned up, which every game on the same version
-hits. Each has a fix your game applies, so it holds in Release builds, where MonoGame.AgentTools is
+hits. Each has a fix your game applies, so it holds in Release builds, where Synthapixel.MonoGame.AgentTools is
 compiled out. The tools never apply these for you: a Debug build would then measure a different game
 from the one you ship. The real fixes belong in MonoGame, and an entry goes once it's fixed upstream.
 

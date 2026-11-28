@@ -11,9 +11,9 @@
 
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.5" />
-    <ProjectReference Include="..\..\src\MonoGame.AgentTools\MonoGame.AgentTools.csproj" />
+    <ProjectReference Include="..\..\src\Synthapixel.MonoGame.AgentTools\Synthapixel.MonoGame.AgentTools.csproj" />
   </ItemGroup>
 
-  <Import Project="..\..\src\MonoGame.AgentTools\build\MonoGame.AgentTools.targets" />
+  <Import Project="..\..\src\Synthapixel.MonoGame.AgentTools\build\Synthapixel.MonoGame.AgentTools.targets" />
 
 </Project>

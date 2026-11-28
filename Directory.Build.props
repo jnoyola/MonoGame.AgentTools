@@ -9,11 +9,12 @@
     <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
     <VersionPrefix>0.2.0</VersionPrefix>
     <VersionSuffix>dev</VersionSuffix>
-    <Authors>Jonathan Noyola</Authors>
-    <Copyright>Copyright (c) 2026 Jonathan Noyola</Copyright>
+    <Authors>Synthapixel</Authors>
+    <Company>Synthapixel</Company>
+    <Copyright>Copyright (c) 2026 Synthapixel</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/jnoyola/MonoGame.AgentTools</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/jnoyola/MonoGame.AgentTools</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Synthapixel/MonoGame.AgentTools</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Synthapixel/MonoGame.AgentTools</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <!-- SourceLink (built into the .NET SDK) so debuggers can step into the library's source. -->
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

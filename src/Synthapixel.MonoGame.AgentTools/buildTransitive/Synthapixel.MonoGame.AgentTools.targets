@@ -1,0 +1,3 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\build\Synthapixel.MonoGame.AgentTools.targets" />
+</Project>

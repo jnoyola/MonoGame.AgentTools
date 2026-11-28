@@ -1,7 +1,7 @@
-# MonoGame.AgentTools
+# Synthapixel.MonoGame.AgentTools
 
-[![NuGet](https://img.shields.io/nuget/v/MonoGame.AgentTools)](https://www.nuget.org/packages/MonoGame.AgentTools)
-[![CI](https://github.com/jnoyola/MonoGame.AgentTools/actions/workflows/ci.yml/badge.svg)](https://github.com/jnoyola/MonoGame.AgentTools/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Synthapixel.MonoGame.AgentTools)](https://www.nuget.org/packages/Synthapixel.MonoGame.AgentTools)
+[![CI](https://github.com/Synthapixel/MonoGame.AgentTools/actions/workflows/ci.yml/badge.svg)](https://github.com/Synthapixel/MonoGame.AgentTools/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Close the loop on agentic game dev. Your coding agent builds, plays, captures and profiles your MonoGame
@@ -28,9 +28,8 @@ game, then iterates autonomously.
 </details>
 </div>
 
-Agents can read and write game code, but they can't see the game. MonoGame.AgentTools gives them eyes,
-hands and a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they
-measure.
+Agents can read and write game code, but they can't see the game. AgentTools gives them eyes, hands and
+a stopwatch, through an MCP server and a small NuGet package, and gives you a view of what they measure.
 
 **For the agent:**
 
@@ -58,13 +57,13 @@ of the output. The tools allocate nothing per frame.
 1. Reference the package from your game's executable project:
 
    ```xml
-   <PackageReference Include="MonoGame.AgentTools" Version="0.2.0" />
+   <PackageReference Include="Synthapixel.MonoGame.AgentTools" Version="0.2.0" />
    ```
 
 2. Attach it in `Main`, before `Run`:
 
    ```csharp
-   using MonoGame.AgentTools;
+   using Synthapixel.MonoGame.AgentTools;
 
    using var game = new MyGame();
    AgentTools.Attach(game, args, new() { ShowHud = true });
@@ -292,3 +291,6 @@ before each release: see [Manual tests](docs/manual-tests.md).
 ## License
 
 MIT. See [LICENSE](LICENSE) and [third-party notices](THIRD-PARTY-NOTICES.md).
+
+A community project by Synthapixel, built on [MonoGame](https://monogame.net) and not affiliated with
+the MonoGame Foundation.
