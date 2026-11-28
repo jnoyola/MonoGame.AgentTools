@@ -2,7 +2,7 @@
 
 ## ProggyClean
 
-The HUD font, `src/MonoGame.AgentTools/Hud/Fonts/ProggyClean.txt`, is imported from ProggyClean
+The HUD font, `src/Synthapixel.MonoGame.AgentTools/Hud/Fonts/ProggyClean.txt`, is imported from ProggyClean
 (`ProggyOriginal/ProggyClean.pcf.gz`, https://github.com/bluescan/proggyfonts) by `tools/ImportFont.cs`.
 
 ```

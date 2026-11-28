@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Synthapixel.MonoGame.AgentTools.Mcp/Synthapixel.MonoGame.AgentTools.Mcp.csproj" />
+    <Project Path="src/Synthapixel.MonoGame.AgentTools/Synthapixel.MonoGame.AgentTools.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/InputProbe/InputProbe.csproj" />
+    <Project Path="tests/Synthapixel.MonoGame.AgentTools.Mcp.Tests/Synthapixel.MonoGame.AgentTools.Mcp.Tests.csproj" />
+    <Project Path="tests/Synthapixel.MonoGame.AgentTools.Tests/Synthapixel.MonoGame.AgentTools.Tests.csproj" />
+  </Folder>
+</Solution>

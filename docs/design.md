@@ -1,8 +1,8 @@
 # Design
 
-How MonoGame.AgentTools works and why: each decision with the engine or tool precedent it follows, the
-alternatives considered, and the measurements behind it. Dated entries record decisions as they were
-made. For using the tools, start with the [README](../README.md).
+How Synthapixel.MonoGame.AgentTools works and why: each decision with the engine or tool precedent it follows,
+the alternatives considered, and the measurements behind it. Dated entries record decisions as they were made.
+For using the tools, start with the [README](../README.md).
 
 Status: steps 1 to 4 implemented (batch capture, live stats, warm-up gates, hitch report, Release
 stripping, the MCP server with contact sheets, comparisons and GIFs, scripted input and replay, capture
@@ -24,8 +24,8 @@ read. No feature exists only as pixels on a HUD.
 
 | Package | Kind | Contents |
 |---|---|---|
-| `MonoGame.AgentTools` | Library (`PackageReference`) | In-game runtime: deterministic stepping, capture, custom metrics, input sources, frame timing, render metrics, HUD, session pipe server. `build/` targets. |
-| `MonoGame.AgentTools.Mcp` | .NET tool, `McpServer` package type | MCP server (official C# SDK `ModelContextProtocol`): launches/supervises the game, post-processing (contact sheets, A/B, diffs, GIF/strips, metric summaries), server instructions + `guide(topic)` tool. Same executable can host CLI verbs later (e.g. CI image compare). |
+| `Synthapixel.MonoGame.AgentTools` | Library (`PackageReference`) | In-game runtime: deterministic stepping, capture, custom metrics, input sources, frame timing, render metrics, HUD, session pipe server. `build/` targets. |
+| `Synthapixel.MonoGame.AgentTools.Mcp` | .NET tool, `McpServer` package type | MCP server (official C# SDK `ModelContextProtocol`): launches/supervises the game, post-processing (contact sheets, A/B, diffs, GIF/strips, metric summaries), server instructions + `guide(topic)` tool. Same executable can host CLI verbs later (e.g. CI image compare). |
 
 Versions are published in lockstep. A tool package cannot also be a library reference, hence two IDs;
 the consumer only ever references the library.
@@ -36,7 +36,7 @@ official account shows "verified"). `MonoGame.DevTools` rejected: reads as offic
 
 ## Onboarding (one thing)
 
-1. `PackageReference MonoGame.AgentTools`
+1. `PackageReference Synthapixel.MonoGame.AgentTools`
 2. One call in `Main`. Zero-config is the goal (capture drives the game's real `Update`/`Draw`, see
    Runtime); registration is optional enrichment:
    ```csharp
@@ -52,7 +52,7 @@ official account shows "verified"). `MonoGame.DevTools` rejected: reads as offic
    with `.git`), and into `.vscode/mcp.json` (`servers`) and `.cursor/mcp.json` where those folders
    exist, as Aspire's `aspire agent init` configures the agents it detects:
    ```json
-   "monogame-agenttools": { "type": "stdio", "command": "dotnet", "args": ["dnx", "MonoGame.AgentTools.Mcp@<same version>", "--yes", "mcp"] }
+   "monogame-agenttools": { "type": "stdio", "command": "dotnet", "args": ["dnx", "Synthapixel.MonoGame.AgentTools.Mcp@<same version>", "--yes", "mcp"] }
    ```
    Identical for every user (no machine paths), safe to commit, rewritten only when the version
    changes. `dotnet dnx`, not `dnx`: on Windows `dnx` is a .cmd script, which clients that start
@@ -76,7 +76,7 @@ official account shows "verified"). `MonoGame.DevTools` rejected: reads as offic
      design-time builds. The file is held exclusively while editing, for parallel project builds.
    - The task is source compiled by RoslynCodeTaskFactory (`build/McpConfig.cs`), so it runs under both
      the .NET SDK's MSBuild and Visual Studio's .NET Framework MSBuild (both verified); that's also why
-     it uses no JSON library. The package version comes from a `build/MonoGame.AgentTools.props`
+     it uses no JSON library. The package version comes from a `build/Synthapixel.MonoGame.AgentTools.props`
      written at pack time; a project reference has none, so the stand-in in this repo skips it.
 
 No skill files are copied. Agent guidance ships in the MCP server: short server `instructions`
@@ -286,11 +286,10 @@ point, not a reference design. Findings from MonoGame `develop` (76ed1c2, 2026-1
 
 ## Implementation (step 1)
 
-Layout: `src/MonoGame.AgentTools` (net8.0, compiles against `MonoGame.Framework.DesktopGL` 3.8.5 with
-`PrivateAssets=all`, so the consumer's platform package supplies MonoGame), `tests/` (xunit v3 on
-Microsoft.Testing.Platform), `build/` targets. A game in the same build can reference it as a project
-plus an explicit `Import` of the targets, the dev-time stand-in for the package (the input probe in
-`tests/` does).
+Layout: `src/Synthapixel.MonoGame.AgentTools` (net8.0, compiles against `MonoGame.Framework.DesktopGL` 3.8.5
+with `PrivateAssets=all`, so the consumer's platform package supplies MonoGame), `tests/` (xunit v3 on
+Microsoft.Testing.Platform), `build/` targets. A game in the same build can reference it as a project plus an
+explicit `Import` of the targets, the dev-time stand-in for the package (the input probe in `tests/` does).
 
 Decisions made while building it, each verified by running:
 
@@ -412,7 +411,7 @@ one that ships.
 
 ## MCP server (step 1)
 
-`src/MonoGame.AgentTools.Mcp` (net10.0 .NET tool, `PackageType McpServer`, official C# SDK
+`src/Synthapixel.MonoGame.AgentTools.Mcp` (net10.0 .NET tool, `PackageType McpServer`, official C# SDK
 `ModelContextProtocol` 2.4.0 on `Microsoft.Extensions.Hosting`, the shape of `dotnet new mcpserver`).
 Started as `monogame-agenttools mcp` over stdio, with the workspace as its current directory.
 
@@ -423,8 +422,8 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   Server instructions are five lines; the rest is in tool descriptions and the guide, as decided under
   Onboarding.
 - **Finding the game.** Executable, non-test projects under the workspace whose XML references
-  `MonoGame.AgentTools` by package or project; with several, the agent passes `project`. Text matching
-  rather than MSBuild evaluation: evaluating every project costs seconds, and the explicit argument
+  `Synthapixel.MonoGame.AgentTools` by package or project; with several, the agent passes `project`. Text
+  matching rather than MSBuild evaluation: evaluating every project costs seconds, and the explicit argument
   covers the misses.
 - **Building and starting it.** One `dotnet build -c Debug -t:Build -getProperty:RunCommand
   -getProperty:RunArguments -getProperty:RunWorkingDirectory -getProperty:TargetPath` builds and
@@ -875,6 +874,12 @@ The options grew one flag at a time, and two runs needed several flags together:
 
 ## Versions
 
+- **Names carry the publisher's prefix.** nuget.org reserves the `MonoGame.` prefix for the MonoGame
+  team, so the packages are `Synthapixel.MonoGame.AgentTools` and `.Mcp`, and the projects, assemblies and
+  root namespaces match them, as .NET's library guidance asks (`Company.Technology.Product`, like
+  `SixLabors.ImageSharp` and `CommunityToolkit.Mvvm`). The repository drops the prefix, since its owner is
+  in the URL. The product is still AgentTools, so the `--agenttools-` options, the `AGENTTOOLS` symbol, the
+  `.agenttools` folder and the `monogame-agenttools` command and server name keep their names.
 - **The minor version marks the command line.** The MCP server passes the game `--agenttools-` options,
   so a server and a library must agree on them. The two packages ship together at one version, and the
   minor (the major from 1.0 on) is what they must share, by SemVer's rule that a 0.x minor bump is
@@ -882,9 +887,9 @@ The options grew one flag at a time, and two runs needed several flags together:
   from source on either side of the change differ too; unreleased minors are skipped, which SemVer
   allows. Changesets and Nerdbank.GitVersioning likewise record a bump with the change.
 - **The server refuses a game on another minor.** After building the game it reads the version of the
-  `MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a different
-  minor, saying which side to update. Without it, a game on an older package (or a project reference to
-  an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
+  `Synthapixel.MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a
+  different minor, saying which side to update. Without it, a game on an older package (or a project reference
+  to an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
   description. Reading the built DLL, not a package or project property, catches both.
 - **CI enforces it.** On each PR, `tools/CommandLineContract.cs` loads the library built at the base and at
   the PR, compares their entry flags and options, and fails if they differ without a minor bump, naming
@@ -909,9 +914,9 @@ The options grew one flag at a time, and two runs needed several flags together:
 ## Open questions
 
 - Confirm the VS Code extension honours `.mcp.json` from the repo root when the workspace is a subfolder.
-- `server.json`'s registry name `io.github.jnoyola/monogame-agenttools` follows the MCP Registry's
-  GitHub namespace (publishing requires signing in as that account); confirmed 2026-11-18. Only the
-  registry listing uses it; `.mcp.json` runs the NuGet package through `dotnet dnx`.
+- `server.json`'s registry name `io.github.Synthapixel/monogame-agenttools` follows the MCP Registry's
+  GitHub namespace (publishing requires signing in as a member of the organization). Only the registry
+  listing uses it; `.mcp.json` runs the NuGet package through `dotnet dnx`.
 - Custom metrics with no value in a frame (a smoke particle's distance before any smoke exists) return
   NaN: an empty CSV cell, skipped by the summary's first/last/min/max, and `-` in the HUD.
 - CI pass/fail story: `dotnet test` helpers comparing captures to goldens with tolerance (Playwright
@@ -921,18 +926,18 @@ The options grew one flag at a time, and two runs needed several flags together:
 
 0. ~~Spike~~ done (see Runtime → Spike result): real-loop capture + hidden backbuffer readback works
    and is deterministic on DesktopGL.
-1. ~~New `MonoGame.AgentTools` project~~ done: real-loop capture, PNG/sheet, frame CSV + JSON summary,
-   warm-up gates, hitch report, custom metrics, live stats, base-call warning. ~~Move the sample game
+1. ~~New `Synthapixel.MonoGame.AgentTools` project~~ done: real-loop capture, PNG/sheet, frame CSV + JSON
+   summary, warm-up gates, hitch report, custom metrics, live stats, base-call warning. ~~Move the sample game
    onto it~~ done (2026-11-18): its scenes and cameras are its own flags (passed through `gameArgs`), its
-   simulation numbers are custom metrics, and its own HUD, profiler and harness are gone. A generic
-   tracked average (the game reports a subject's screen position as custom metrics, the MCP crops and
-   averages saved frames) is a candidate MCP feature if a review needs one.
+   simulation numbers are custom metrics, and its own HUD, profiler and harness are gone. A generic tracked
+   average (the game reports a subject's screen position as custom metrics, the MCP crops and averages saved
+   frames) is a candidate MCP feature if a review needs one.
 2. ~~`[Conditional]` stripping + targets~~ done and verified via the packed package.
 3. ~~`GraphicsDevice.Metrics`~~ done (per frame). Remaining: `BeginScope`/`EndScope` per-pass deltas;
    ~~HUD~~ done.
 4. ~~Scripted input, record/replay~~ done (2026-11-19; see Input, timing and replay), by injection into
    MonoGame's own input path rather than an `IInputSource` the game would have to adopt.
 5. Session mode over a named pipe.
-6. `MonoGame.AgentTools.Mcp` server: ~~tools, guide content~~ done (see MCP server). ~~`.mcp.json`
+6. `Synthapixel.MonoGame.AgentTools.Mcp` server: ~~tools, guide content~~ done (see MCP server). ~~`.mcp.json`
    merge from the library's targets~~ done (2026-11-18; see Setup step 3).
 7. ~~Pack and publish both packages~~ done (2026-11-22, 0.2.0; see Versions).

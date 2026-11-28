@@ -2,7 +2,7 @@
 // without a minor version bump (a major bump from 1.0 on), since the server refuses a game whose library
 // is on another minor. Run by CI against the PR's base; bump VersionPrefix in Directory.Build.props when
 // it fails, or by hand when an option keeps its name but changes its meaning, which this can't see.
-// Usage: dotnet run tools/CommandLineContract.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>
+// Usage: dotnet run tools/CommandLineContract.cs -- <base Synthapixel.MonoGame.AgentTools.dll> <head Synthapixel.MonoGame.AgentTools.dll>
 
 // It loads the libraries to read their options, which native AOT (on by default for file-based apps) can't do.
 #:property PublishAot=false
@@ -12,7 +12,7 @@ using System.Runtime.Loader;
 
 if (args.Length != 2)
 {
-    Console.Error.WriteLine("Usage: dotnet run tools/CommandLineContract.cs -- <base MonoGame.AgentTools.dll> <head MonoGame.AgentTools.dll>");
+    Console.Error.WriteLine("Usage: dotnet run tools/CommandLineContract.cs -- <base Synthapixel.MonoGame.AgentTools.dll> <head Synthapixel.MonoGame.AgentTools.dll>");
     return 2;
 }
 
@@ -25,7 +25,7 @@ if (before is null)
 }
 if (after is null)
 {
-    Console.Error.WriteLine("The library no longer has MonoGame.AgentTools.CommandLineOptions; update this tool to read its command line.");
+    Console.Error.WriteLine("The library no longer has CommandLineOptions in its root namespace; update this tool to read its command line.");
     return 1;
 }
 
@@ -55,7 +55,8 @@ static Contract? Read(string path)
     try
     {
         var assembly = context.LoadFromAssemblyPath(Path.GetFullPath(path));
-        if (assembly.GetType("MonoGame.AgentTools.CommandLineOptions") is not { } options)
+        // The root namespace is the assembly name, so this reads the options on either side of a rename.
+        if (assembly.GetType($"{assembly.GetName().Name}.CommandLineOptions") is not { } options)
             return null;
         string Value(string name) => (string)options.GetField(name, BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
         IEnumerable<string> Values(string name) => (IEnumerable<string>)options.GetField(name, BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;

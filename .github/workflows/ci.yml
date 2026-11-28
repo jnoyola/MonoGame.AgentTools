@@ -60,15 +60,15 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
-      - name: Build the library here and at the base
+      # The library is the src folder ending in AgentTools (not .Mcp), found by pattern so the check still
+      # works when a PR renames it.
+      - name: Compare the library here and at the base
+        shell: bash
         run: |
           git worktree add ../base "origin/${{ github.base_ref }}"
-          dotnet build src/MonoGame.AgentTools -c Release
-          dotnet build ../base/src/MonoGame.AgentTools -c Release
-      - run: >-
-          dotnet run tools/CommandLineContract.cs --
-          ../base/artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
-          artifacts/bin/MonoGame.AgentTools/release/MonoGame.AgentTools.dll
+          library() { local dir=$(echo "$1"/src/*AgentTools); dotnet build "$dir" -c Release >&2 && echo "$1/artifacts/bin/$(basename "$dir")/release/$(basename "$dir").dll"; }
+          base=$(library ../base) && head=$(library .)
+          dotnet run tools/CommandLineContract.cs -- "$base" "$head"
 
   pack:
     needs: [format, build]
@@ -89,8 +89,8 @@ jobs:
             if [[ "${GITHUB_REF_NAME#v}" != "$prefix" ]]; then echo "::error::Tag $GITHUB_REF_NAME doesn't match VersionPrefix $prefix"; exit 1; fi
             echo "PACK_VERSION=-p:PackageVersion=$prefix" >> "$GITHUB_ENV"
           else echo "PACK_VERSION=-p:VersionSuffix=ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"; fi
-      - run: dotnet pack src/MonoGame.AgentTools -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
-      - run: dotnet pack src/MonoGame.AgentTools.Mcp -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
+      - run: dotnet pack src/Synthapixel.MonoGame.AgentTools -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
+      - run: dotnet pack src/Synthapixel.MonoGame.AgentTools.Mcp -c Release -o out $PACK_VERSION -p:ContinuousIntegrationBuild=true
       - uses: actions/upload-artifact@v7
         with:
           name: packages
@@ -119,4 +119,4 @@ jobs:
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
-      - run: dotnet nuget push "out/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - run: dotnet nuget push "out/*.nupkg" --api-key ${{ steps.login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

@@ -1,6 +1,6 @@
 // Imports a PCF bitmap font as the text glyph format read by PixelFont.
 // HUD font source: https://github.com/bluescan/proggyfonts (ProggyOriginal/ProggyClean.pcf.gz), MIT license.
-// Usage: dotnet run tools/ImportFont.cs -- <ProggyClean.pcf.gz> src/MonoGame.AgentTools/Hud/Fonts/ProggyClean.txt
+// Usage: dotnet run tools/ImportFont.cs -- <ProggyClean.pcf.gz> src/Synthapixel.MonoGame.AgentTools/Hud/Fonts/ProggyClean.txt
 
 using System.Buffers.Binary;
 using System.Globalization;

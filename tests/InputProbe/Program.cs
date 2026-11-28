@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using MonoGame.AgentTools;
-using MonoGame.AgentTools.Input;
+using Synthapixel.MonoGame.AgentTools;
+using Synthapixel.MonoGame.AgentTools.Input;
 
 var exitAfter = Array.IndexOf(args, "--exit-after") is var i and >= 0 ? double.Parse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture) : double.PositiveInfinity;
 using var game = new ProbeGame { IsFixedTimeStep = !args.Contains("--variable"), ExitAfterSeconds = exitAfter };
@@ -10,7 +10,7 @@ using var game = new ProbeGame { IsFixedTimeStep = !args.Contains("--variable"),
 // capture exits the process when it's done, so it's flushed then.
 if (Array.IndexOf(args, "--probe-record") is var r and >= 0)
 {
-    MonoGame.AgentTools.Runtime.Precompile.Types(typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
+    Synthapixel.MonoGame.AgentTools.Runtime.Precompile.Types(typeof(InputRecorder), typeof(StreamedFile), typeof(InputText));
     var recorder = game.Recorder = InputRecorder.Start(game, args[r + 1]);
     AppDomain.CurrentDomain.ProcessExit += (_, _) => recorder.FlushFinal();
 }
