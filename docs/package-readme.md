@@ -10,7 +10,8 @@ game, then iterates autonomously.
 - **Contact sheets, before-and-after comparisons and GIFs** for judging motion.
 - **Measurements with verdicts**: frame times, warm-up, allocations, GC, memory growth, JIT, draw calls,
   hitches and your own custom metrics.
-- **MCP server** (`Synthapixel.MonoGame.AgentTools.Mcp`), added to your repository's `.mcp.json` when you build.
+- **MCP server** (`Synthapixel.MonoGame.AgentTools.Mcp`), added to your repository's `.mcp.json` when you
+  build.
 - **Free when off**: Debug builds only by default; elsewhere the calls are compiled out and the assembly
   is left out of the output.
 

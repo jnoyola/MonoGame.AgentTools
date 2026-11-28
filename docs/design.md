@@ -1,8 +1,8 @@
 # Design
 
-How Synthapixel.MonoGame.AgentTools works and why: each decision with the engine or tool precedent it follows, the
-alternatives considered, and the measurements behind it. Dated entries record decisions as they were
-made. For using the tools, start with the [README](../README.md).
+How Synthapixel.MonoGame.AgentTools works and why: each decision with the engine or tool precedent it follows,
+the alternatives considered, and the measurements behind it. Dated entries record decisions as they were made.
+For using the tools, start with the [README](../README.md).
 
 Status: steps 1 to 4 implemented (batch capture, live stats, warm-up gates, hitch report, Release
 stripping, the MCP server with contact sheets, comparisons and GIFs, scripted input and replay, capture
@@ -286,11 +286,10 @@ point, not a reference design. Findings from MonoGame `develop` (76ed1c2, 2026-1
 
 ## Implementation (step 1)
 
-Layout: `src/Synthapixel.MonoGame.AgentTools` (net8.0, compiles against `MonoGame.Framework.DesktopGL` 3.8.5 with
-`PrivateAssets=all`, so the consumer's platform package supplies MonoGame), `tests/` (xunit v3 on
-Microsoft.Testing.Platform), `build/` targets. A game in the same build can reference it as a project
-plus an explicit `Import` of the targets, the dev-time stand-in for the package (the input probe in
-`tests/` does).
+Layout: `src/Synthapixel.MonoGame.AgentTools` (net8.0, compiles against `MonoGame.Framework.DesktopGL` 3.8.5
+with `PrivateAssets=all`, so the consumer's platform package supplies MonoGame), `tests/` (xunit v3 on
+Microsoft.Testing.Platform), `build/` targets. A game in the same build can reference it as a project plus an
+explicit `Import` of the targets, the dev-time stand-in for the package (the input probe in `tests/` does).
 
 Decisions made while building it, each verified by running:
 
@@ -423,8 +422,8 @@ Started as `monogame-agenttools mcp` over stdio, with the workspace as its curre
   Server instructions are five lines; the rest is in tool descriptions and the guide, as decided under
   Onboarding.
 - **Finding the game.** Executable, non-test projects under the workspace whose XML references
-  `Synthapixel.MonoGame.AgentTools` by package or project; with several, the agent passes `project`. Text matching
-  rather than MSBuild evaluation: evaluating every project costs seconds, and the explicit argument
+  `Synthapixel.MonoGame.AgentTools` by package or project; with several, the agent passes `project`. Text
+  matching rather than MSBuild evaluation: evaluating every project costs seconds, and the explicit argument
   covers the misses.
 - **Building and starting it.** One `dotnet build -c Debug -t:Build -getProperty:RunCommand
   -getProperty:RunArguments -getProperty:RunWorkingDirectory -getProperty:TargetPath` builds and
@@ -888,9 +887,9 @@ The options grew one flag at a time, and two runs needed several flags together:
   from source on either side of the change differ too; unreleased minors are skipped, which SemVer
   allows. Changesets and Nerdbank.GitVersioning likewise record a bump with the change.
 - **The server refuses a game on another minor.** After building the game it reads the version of the
-  `Synthapixel.MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a different
-  minor, saying which side to update. Without it, a game on an older package (or a project reference to
-  an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
+  `Synthapixel.MonoGame.AgentTools.dll` in the build output, the library the game will run, and refuses a
+  different minor, saying which side to update. Without it, a game on an older package (or a project reference
+  to an old copy of the source) rejected options it didn't know, in words that contradicted the tool's
   description. Reading the built DLL, not a package or project property, catches both.
 - **CI enforces it.** On each PR, `tools/CommandLineContract.cs` loads the library built at the base and at
   the PR, compares their entry flags and options, and fails if they differ without a minor bump, naming
@@ -927,12 +926,12 @@ The options grew one flag at a time, and two runs needed several flags together:
 
 0. ~~Spike~~ done (see Runtime → Spike result): real-loop capture + hidden backbuffer readback works
    and is deterministic on DesktopGL.
-1. ~~New `Synthapixel.MonoGame.AgentTools` project~~ done: real-loop capture, PNG/sheet, frame CSV + JSON summary,
-   warm-up gates, hitch report, custom metrics, live stats, base-call warning. ~~Move the sample game
+1. ~~New `Synthapixel.MonoGame.AgentTools` project~~ done: real-loop capture, PNG/sheet, frame CSV + JSON
+   summary, warm-up gates, hitch report, custom metrics, live stats, base-call warning. ~~Move the sample game
    onto it~~ done (2026-11-18): its scenes and cameras are its own flags (passed through `gameArgs`), its
-   simulation numbers are custom metrics, and its own HUD, profiler and harness are gone. A generic
-   tracked average (the game reports a subject's screen position as custom metrics, the MCP crops and
-   averages saved frames) is a candidate MCP feature if a review needs one.
+   simulation numbers are custom metrics, and its own HUD, profiler and harness are gone. A generic tracked
+   average (the game reports a subject's screen position as custom metrics, the MCP crops and averages saved
+   frames) is a candidate MCP feature if a review needs one.
 2. ~~`[Conditional]` stripping + targets~~ done and verified via the packed package.
 3. ~~`GraphicsDevice.Metrics`~~ done (per frame). Remaining: `BeginScope`/`EndScope` per-pass deltas;
    ~~HUD~~ done.

@@ -1,15 +1,15 @@
 # MCP server
 
-`Synthapixel.MonoGame.AgentTools.Mcp` lets an agent build and capture your game and look at the results, as tool
-calls. It runs over stdio from the NuGet package through `dotnet dnx`, so there's nothing to install
+`Synthapixel.MonoGame.AgentTools.Mcp` lets an agent build and capture your game and look at the results, as
+tool calls. It runs over stdio from the NuGet package through `dotnet dnx`, so there's nothing to install
 beyond the .NET 10 SDK.
 
 ## Setup
 
 ### Automatic
 
-Building a game that references `Synthapixel.MonoGame.AgentTools` (with the tools enabled, so Debug by default) adds
-the server to `.mcp.json` at the root of your repository, the folder with `.git`:
+Building a game that references `Synthapixel.MonoGame.AgentTools` (with the tools enabled, so Debug by
+default) adds the server to `.mcp.json` at the root of your repository, the folder with `.git`:
 
 ```json
 {
@@ -65,8 +65,8 @@ before and after a change. Live play records sessions beside them, in `.agenttoo
 
 ### list_games
 
-Lists the executable projects under the workspace that reference `Synthapixel.MonoGame.AgentTools`. `capture` and
-`profile` need a `project` only when there's more than one.
+Lists the executable projects under the workspace that reference `Synthapixel.MonoGame.AgentTools`. `capture`
+and `profile` need a `project` only when there's more than one.
 
 ```text
 MyGame\MyGame.csproj
@@ -200,6 +200,6 @@ gif({ "capture": "slam-edge-hard", "baseline": "slam-edge-soft", "diff": true, "
 
 ### guide
 
-Explains Synthapixel.MonoGame.AgentTools in depth for the agent, by topic: `setup`, `capture`, `contact-sheets` and
-`performance`. Called without a topic, it lists them. The server's always-loaded instructions stay a few
-lines long; the guide holds the rest, so agents read it only when they need it.
+Explains Synthapixel.MonoGame.AgentTools in depth for the agent, by topic: `setup`, `capture`,
+`contact-sheets` and `performance`. Called without a topic, it lists them. The server's always-loaded
+instructions stay a few lines long; the guide holds the rest, so agents read it only when they need it.
